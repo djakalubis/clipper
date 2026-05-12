@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       scene_mode: clean(body.scene_mode || process.env.SCENE_MODE || "podcast"),
       clip_count: clean(body.clip_count || process.env.CLIP_COUNT || "1"),
       subtitle_font: clean(body.subtitle_font || process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
-      subtitle_font_size: clean(body.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || "46"),
+      subtitle_font_size: clean(body.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || "56"),
       subtitle_margin_v: clean(body.subtitle_margin_v || process.env.SUBTITLE_MARGIN_V || "550"),
       subtitle_margin_h: clean(body.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || "180"),
       use_frame: boolInput(body.use_frame, boolEnv("VIDEO_FRAME_ENABLED", true)) ? "true" : "false",

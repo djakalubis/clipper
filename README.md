@@ -1280,8 +1280,8 @@ YTDLP_REMOTE_COMPONENTS=ejs:github
 SUBTITLE_OFFSET_SECONDS=0
 SUBTITLE_FONT_FAMILY=Segoe UI Semibold
 SUBTITLE_FALLBACK_FONTS=Segoe UI,Arial,DejaVu Sans
-SUBTITLE_FONT_SIZE=46
-SUBTITLE_MIN_FONT_SIZE=34
+SUBTITLE_FONT_SIZE=56
+SUBTITLE_MIN_FONT_SIZE=42
 SUBTITLE_MARGIN_V=550
 SUBTITLE_MARGIN_H=180
 SUBTITLE_MAX_LINES=2
@@ -1440,7 +1440,7 @@ Daftar font cadangan subtitle.
 
 #### `SUBTITLE_FONT_SIZE`
 
-Ukuran font subtitle. Default diperkecil agar aman di layar HP.
+Ukuran font subtitle. Default dibuat besar agar nyaman dibaca di format short 9:16.
 
 #### `SUBTITLE_MIN_FONT_SIZE`
 

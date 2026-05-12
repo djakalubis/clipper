@@ -29,7 +29,7 @@ const options = {
   qualityProfile: argValue("--quality", process.env.VIDEO_QUALITY_PROFILE || "standard"),
   clipCount: Number(argValue("--clip-count", process.env.CLIP_COUNT || "1")),
   subtitleFont: argValue("--subtitle-font", process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
-  subtitleFontSize: Number(argValue("--subtitle-font-size", process.env.SUBTITLE_FONT_SIZE || "46")),
+  subtitleFontSize: Number(argValue("--subtitle-font-size", process.env.SUBTITLE_FONT_SIZE || "56")),
   subtitleMarginV: Number(argValue("--subtitle-margin-v", process.env.SUBTITLE_MARGIN_V || "550")),
   subtitleMarginH: Number(argValue("--subtitle-margin-h", process.env.SUBTITLE_MARGIN_H || "180")),
   useFrame: optionalBoolArg("--use-frame"),

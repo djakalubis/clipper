@@ -595,7 +595,7 @@ app.post("/api/run", async (req, res) => {
     useWatermark: boolInput(body.use_watermark, config.videoEffects.watermarkEnabled),
     useMusic: boolInput(body.use_music, boolInput(process.env.BACKGROUND_MUSIC_ENABLED, true)),
     subtitleFont: body.subtitle_font || "Segoe UI Semibold",
-    subtitleFontSize: Number(body.subtitle_font_size || 46),
+    subtitleFontSize: Number(body.subtitle_font_size || 56),
     subtitleMarginV: Number(body.subtitle_margin_v || 550),
     subtitleMarginH: Number(body.subtitle_margin_h || 180)
   }))

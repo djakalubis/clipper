@@ -178,7 +178,7 @@ async function createManualSelection(options) {
     clip_count: Number(options.clipCount || process.env.CLIP_COUNT || 1),
     scene_mode: options.sceneMode || "podcast",
     subtitle_font: options.subtitleFont || "Segoe UI Semibold",
-    subtitle_font_size: options.subtitleFontSize || 46,
+    subtitle_font_size: options.subtitleFontSize || 56,
     subtitle_margin_v: options.subtitleMarginV || 550,
     subtitle_margin_h: options.subtitleMarginH || 180,
     use_frame: options.useFrame,

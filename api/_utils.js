@@ -295,7 +295,7 @@ export function buildVideo(input) {
     scene_mode: clean(input.scene_mode || process.env.SCENE_MODE || "podcast"),
     clip_count: Number(input.clip_count || process.env.CLIP_COUNT || 1),
     subtitle_font: clean(input.subtitle_font || process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
-    subtitle_font_size: Number(input.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || 46),
+    subtitle_font_size: Number(input.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || 56),
     subtitle_margin_v: Number(input.subtitle_margin_v || process.env.SUBTITLE_MARGIN_V || 550),
     subtitle_margin_h: Number(input.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 180),
     use_frame: boolInput(input.use_frame, boolEnv("VIDEO_FRAME_ENABLED", true)),

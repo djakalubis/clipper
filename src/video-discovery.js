@@ -1155,7 +1155,7 @@ export async function discoverAndQueueVideos(options = {}) {
       quality_profile: process.env.VIDEO_QUALITY_PROFILE || "standard",
       clip_count: Number(process.env.CLIP_COUNT || 1),
       subtitle_font: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
-      subtitle_font_size: Number(process.env.SUBTITLE_FONT_SIZE || 46),
+      subtitle_font_size: Number(process.env.SUBTITLE_FONT_SIZE || 56),
       subtitle_margin_v: Number(process.env.SUBTITLE_MARGIN_V || 550),
       subtitle_margin_h: Number(process.env.SUBTITLE_MARGIN_H || 180),
       use_frame: boolEnv("VIDEO_FRAME_ENABLED", true),

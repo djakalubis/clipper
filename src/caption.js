@@ -41,28 +41,27 @@ function collectText(value, texts) {
 }
 
 export async function generateCaption({ job, output, promptTemplate, clipperRoot, aiProvider = "" }) {
-  const quickHashtags = buildDynamicHashtags({ job, output, promptTemplate });
-  if (hasStrategyCaption(output) && isCompleteCaption(output.caption)) {
-    return ensureCaptionHashtags(output.caption, output, promptTemplate, quickHashtags);
-  }
-
   const context = await readClipContext(clipperRoot, output);
   const dynamicHashtags = buildDynamicHashtags({ job, output, promptTemplate, context });
   const fallback = fallbackCaption(output, promptTemplate, dynamicHashtags);
   const prompt = [
-    "Buat caption Instagram Reels berbahasa Indonesia.",
+    "Buat caption Instagram Reels berbahasa Indonesia yang terasa seperti ngobrol langsung dengan pemirsa.",
     "Aturan:",
-    "- Baris pertama harus hook kuat, boleh berbentuk kutipan pendek atau pertanyaan yang bikin penasaran.",
-    "- Paragraf kedua menjelaskan konflik, fakta mengejutkan, atau alasan clip ini layak ditonton.",
-    "- Ringkas, natural, emosional, dan sesuai transkrip.",
+    "- Baris pertama harus hook kuat dan conversational, boleh berupa pertanyaan tajam, komentar spontan, atau kutipan pendek yang bikin penasaran.",
+    "- Paragraf kedua wajib membahas topik utama video secara spesifik: isu, konflik, sudut pandang, insight, atau momen yang sedang dibicarakan.",
+    "- Tulis seperti kreator yang mengajak pemirsa ikut mikir/menanggapi, bukan seperti laporan formal.",
+    "- Gunakan kata sapaan seperti kamu/kita secukupnya agar terasa interaktif.",
+    "- Boleh pakai 1 pertanyaan retoris atau pertanyaan diskusi yang nyambung dengan topik video.",
+    "- Hindari kalimat template kaku seperti 'Dalam video ini', 'Potongan ini', atau 'Video ini membahas'.",
+    "- Ringkas, natural, emosional, dan tetap sesuai transkrip.",
     "- Jangan mengarang fakta di luar konteks.",
-    "- Tambahkan CTA ringan.",
+    "- Tambahkan CTA ringan yang mengundang komentar pemirsa tentang topik clip.",
     "- Caption harus selesai utuh. Jangan akhiri dengan kalimat terpotong, koma, titik dua, kata sambung, atau ellipsis.",
     "- Jangan menyalin mentah transkrip yang terpotong; rangkum jadi kalimat lengkap.",
     "- Akhiri dengan tepat 3 hashtag relevan. Prioritaskan 1 hashtag konteks/tokoh/topik jika ada.",
     "",
     `Tema: ${job.theme}`,
-    `Gaya: ${promptTemplate?.hook_style || "natural emotional"}`,
+    `Gaya: ${promptTemplate?.caption_style || promptTemplate?.hook_style || "natural, conversational, audience-first"}`,
     `CTA: ${promptTemplate?.cta || "Menurut kamu bagaimana?"}`,
     `Base hashtag: ${BASE_HASHTAGS.join(" ")}`,
     `Arah hashtag dari konteks: ${dynamicHashtags.join(" ") || "-"}`,
@@ -125,30 +124,27 @@ export async function generateFrameQuoteText({ job, output, promptTemplate, aiPr
   return isStrongFrameQuote(generated) ? generated : fallback;
 }
 
-function hasStrategyCaption(output) {
-  return Boolean(
-    output?.caption
-    && String(output.caption).trim().length >= 20
-    && (
-      output.viralScore
-      || output.selectedAngle
-      || output.publishDecision
-      || output.candidateId
-    )
-  );
-}
-
 function fallbackCaption(output, promptTemplate, dynamicHashtags = []) {
-  const hook = completeSentence(output.hook || output.title || "Ada bagian menarik dari obrolan ini.");
+  const hookSource = output.hook || output.selectedAngle || output.title || "Ada bagian menarik dari obrolan ini";
+  const hook = asQuestionOrSentence(hookSource);
   const body = completeSentence(
     output.reason
     || output.selectedAngle
     || output.caption
-    || "Potongan ini diambil dari momen yang paling kuat di podcast."
+    || "Topik ini terasa dekat karena obrolannya menyentuh hal yang sering kita lihat sehari-hari."
   );
   const cta = completeSentence(promptTemplate?.cta || "Menurut kamu, bagian paling relate yang mana?");
   const tags = captionHashtags({ dynamicHashtags, output, promptTemplate }).join(" ");
   return `${hook}\n\n${body}\n\n${cta}\n\n${tags}`;
+}
+
+function asQuestionOrSentence(value) {
+  const cleaned = normalizeCaptionBody(value);
+  if (!cleaned) return "Kamu juga kepikiran hal yang sama?";
+  if (/[?!]$/.test(cleaned)) return cleaned;
+  const conversationalHook = cleaned.replace(/[.!]+$/g, "").trim();
+  if (conversationalHook.length <= 110) return `${conversationalHook} menurut kamu gimana?`;
+  return completeSentence(cleaned);
 }
 
 function fallbackFrameQuote(output) {

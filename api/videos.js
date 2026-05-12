@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         scene_mode: video.scene_mode || "podcast",
         clip_count: String(video.clip_count || 1),
         subtitle_font: video.subtitle_font || "Segoe UI Semibold",
-        subtitle_font_size: String(video.subtitle_font_size || 46),
+        subtitle_font_size: String(video.subtitle_font_size || 56),
         subtitle_margin_v: String(video.subtitle_margin_v || 550),
         subtitle_margin_h: String(video.subtitle_margin_h || 180),
         use_frame: video.use_frame ? "true" : "false",
