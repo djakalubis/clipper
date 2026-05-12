@@ -200,7 +200,7 @@ jobs:
       OPENAI_TRANSCRIBE_MODEL: ${{ secrets.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe' }}
       AI_REQUEST_TIMEOUT_SECONDS: ${{ secrets.AI_REQUEST_TIMEOUT_SECONDS || '25' }}
       TRANSCRIBE_PROVIDER: ${{ secrets.TRANSCRIBE_PROVIDER || 'deepgram' }}
-      MAX_SCHEDULED_POSTS_PER_DAY: ${{ secrets.MAX_SCHEDULED_POSTS_PER_DAY || '15' }}
+      MAX_SCHEDULED_POSTS_PER_DAY: "0"
       DEEPGRAM_ENABLED: ${{ github.event.inputs.deepgram_enabled || '1' }}
       DEEPGRAM_API_KEYS: ${{ secrets.DEEPGRAM_API_KEYS }}
       DEEPGRAM_MODEL: ${{ secrets.DEEPGRAM_MODEL || 'nova-3' }}
@@ -218,21 +218,21 @@ jobs:
       INSTAGRAM_CONTAINER_MAX_ATTEMPTS: ${{ secrets.INSTAGRAM_CONTAINER_MAX_ATTEMPTS || '90' }}
       TOKEN_REFRESH_BEFORE_DAYS: ${{ secrets.TOKEN_REFRESH_BEFORE_DAYS || '10' }}
       AUTO_DISCOVER_VIDEOS: ${{ secrets.AUTO_DISCOVER_VIDEOS || 'true' }}
-      AUTO_DISCOVER_QUERY: ${{ secrets.AUTO_DISCOVER_QUERY || 'podcast indonesia hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru|podcast politik indonesia hari ini' }}
-      AUTO_DISCOVER_DAILY_QUERY: ${{ secrets.AUTO_DISCOVER_DAILY_QUERY || 'podcast indonesia hari ini' }}
+      AUTO_DISCOVER_QUERY: ${{ secrets.AUTO_DISCOVER_QUERY || 'podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru|podcast politik indonesia hari ini' }}
+      AUTO_DISCOVER_DAILY_QUERY: ${{ secrets.AUTO_DISCOVER_DAILY_QUERY || 'podcast musisi indonesia viral hari ini' }}
       AUTO_DISCOVER_USE_API: ${{ secrets.AUTO_DISCOVER_USE_API || 'true' }}
       AUTO_DISCOVER_ALLOW_OAUTH: ${{ secrets.AUTO_DISCOVER_ALLOW_OAUTH || 'false' }}
       AUTO_DISCOVER_DAILY_SEARCH_ONLY: ${{ secrets.AUTO_DISCOVER_DAILY_SEARCH_ONLY || 'true' }}
       AUTO_DISCOVER_DAILY_SEARCH_RESULTS: ${{ secrets.AUTO_DISCOVER_DAILY_SEARCH_RESULTS || '7' }}
       AUTO_DISCOVER_TRENDING_ENABLED: ${{ secrets.AUTO_DISCOVER_TRENDING_ENABLED || 'true' }}
-      AUTO_DISCOVER_TRENDING_CATEGORY_IDS: ${{ secrets.AUTO_DISCOVER_TRENDING_CATEGORY_IDS || '24,22' }}
+      AUTO_DISCOVER_TRENDING_CATEGORY_IDS: ${{ secrets.AUTO_DISCOVER_TRENDING_CATEGORY_IDS || '24,22,10' }}
       AUTO_DISCOVER_TRENDING_MAX_RESULTS: ${{ secrets.AUTO_DISCOVER_TRENDING_MAX_RESULTS || '25' }}
       AUTO_DISCOVER_TRENDING_MAX_AGE_HOURS: ${{ secrets.AUTO_DISCOVER_TRENDING_MAX_AGE_HOURS || '36' }}
       AUTO_DISCOVER_CACHE_SYNC_IMMEDIATE: ${{ secrets.AUTO_DISCOVER_CACHE_SYNC_IMMEDIATE || 'true' }}
       AUTO_DISCOVER_VALIDATE_URL: ${{ secrets.AUTO_DISCOVER_VALIDATE_URL || 'true' }}
       AUTO_DISCOVER_MAX_RESULTS: ${{ secrets.AUTO_DISCOVER_MAX_RESULTS || '7' }}
       AUTO_DISCOVER_ADD_COUNT: ${{ secrets.AUTO_DISCOVER_ADD_COUNT || '7' }}
-      AUTO_DISCOVER_DAILY_QUEUE_LIMIT: ${{ secrets.AUTO_DISCOVER_DAILY_QUEUE_LIMIT || secrets.MAX_SCHEDULED_POSTS_PER_DAY || '15' }}
+      AUTO_DISCOVER_DAILY_QUEUE_LIMIT: "0"
       AUTO_DISCOVER_EXPIRE_OLD_QUEUE: ${{ secrets.AUTO_DISCOVER_EXPIRE_OLD_QUEUE || 'true' }}
       AUTO_DISCOVER_QUEUE_TTL_DAYS: ${{ secrets.AUTO_DISCOVER_QUEUE_TTL_DAYS || '1' }}
       AUTO_DISCOVER_MIN_DURATION_SECONDS: ${{ secrets.AUTO_DISCOVER_MIN_DURATION_SECONDS || '600' }}

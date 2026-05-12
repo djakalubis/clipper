@@ -12,9 +12,18 @@ import { getYoutubeAccessToken } from "./youtube-publisher.js";
 
 const DEFAULT_QUERIES = [
   "podcast indonesia hari ini",
+  "podcast indonesia viral hari ini",
   "podcast artis indonesia hari ini",
   "podcast artis indonesia terbaru",
   "podcast artis indonesia viral",
+  "podcast musisi indonesia terbaru",
+  "podcast musisi indonesia viral",
+  "podcast musisi indonesia hari ini",
+  "podcast ariel noah terbaru",
+  "podcast ahmad dhani terbaru",
+  "podcast ari lasso terbaru",
+  "podcast penyanyi indonesia terbaru",
+  "podcast band indonesia terbaru",
   "podcast deddy corbuzier terbaru",
   "podcast vindes terbaru",
   "podcast politik indonesia hari ini"
@@ -26,6 +35,18 @@ const FALLBACK_QUERIES = [
   "podcast indonesia viral",
   "podcast artis indonesia full",
   "podcast selebriti indonesia terbaru",
+  "podcast musisi viral indonesia",
+  "podcast penyanyi viral indonesia",
+  "podcast band indonesia viral",
+  "ariel noah podcast terbaru",
+  "ahmad dhani podcast terbaru",
+  "ari lasso podcast terbaru",
+  "dewa 19 podcast terbaru",
+  "once mekel podcast terbaru",
+  "judika podcast terbaru",
+  "rossa podcast terbaru",
+  "raisa podcast terbaru",
+  "tulus podcast terbaru",
   "podcast deddy corbuzier terbaru",
   "raditya dika podcast terbaru",
   "podcast vindes terbaru",
@@ -46,8 +67,10 @@ const DEFAULT_CHANNEL_HANDLES = [
   "@TotalPolitik"
 ];
 
-const PODCAST_TOPIC_RE = /podcast|siniar|podhub|podkesmas|close\s*the\s*door|vindes|deddy|corbuzier|raditya|daniel\s*mananta|has\s*creative|kasisolusi|total\s*politik|podcast\s*politik|podcast\s*komedi/i;
-const NON_PODCAST_NOISE_RE = /official\s*music\s*video|lirik|lyrics|trailer|teaser|sinetron|drama|full\s*movie|film\s*pendek|gameplay|live\s*stream\s*game|highlight\s*bola/i;
+const PODCAST_FORMAT_RE = /podcast|siniar|podhub|podkesmas|close\s*the\s*door|vindes|deddy|corbuzier|raditya|daniel\s*mananta|has\s*creative|kasisolusi|total\s*politik|podcast\s*politik|podcast\s*komedi/i;
+const MUSICIAN_TOPIC_RE = /musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*dhani|ari\s*lasso|dewa\s*19|once\s*mekel|judika|rossa|raisa|tulus|maia\s*estianty|anang|melly\s*goeslaw/i;
+const PODCAST_TOPIC_RE = new RegExp(`${PODCAST_FORMAT_RE.source}|${MUSICIAN_TOPIC_RE.source}`, "i");
+const NON_PODCAST_NOISE_RE = /official\s*music\s*video|official\s*audio|video\s*klip|lirik|lyrics|karaoke|konser|live\s*session|trailer|teaser|sinetron|drama|full\s*movie|film\s*pendek|gameplay|live\s*stream\s*game|highlight\s*bola/i;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 const DISCOVERY_CACHE_FILE = "discovery-cache.json";
 const AUTO_DISCOVERY_SELECTABLE_STATUSES = new Set(["queued", "failed", "retry"]);
@@ -100,7 +123,7 @@ function isAutoDiscoveredVideo(video) {
 }
 
 function autoDiscoveryDailyQueueLimit() {
-  const fallback = numberEnv("MAX_SCHEDULED_POSTS_PER_DAY", 15, 0, 1000);
+  const fallback = numberEnv("MAX_SCHEDULED_POSTS_PER_DAY", 0, 0, 1000);
   return numberEnv("AUTO_DISCOVER_DAILY_QUEUE_LIMIT", fallback, 0, 1000);
 }
 
@@ -253,7 +276,7 @@ function isTrustedPodcastChannelSource(item) {
 
 function isPodcastCandidate(item) {
   const text = candidateText(item);
-  if (NON_PODCAST_NOISE_RE.test(text) && !PODCAST_TOPIC_RE.test(text)) return false;
+  if (NON_PODCAST_NOISE_RE.test(text) && !PODCAST_FORMAT_RE.test(text)) return false;
   return PODCAST_TOPIC_RE.test(text) || isTrustedPodcastChannelSource(item);
 }
 
@@ -267,6 +290,7 @@ function passesDuration(item, options) {
 function topicMultiplier(text) {
   const value = String(text || "").toLowerCase();
   if (/podcast.*artis|artis.*podcast|deddy|corbuzier|vindes|raditya|close\s*the\s*door/.test(value)) return 1.4;
+  if (/musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*dhani|ari\s*lasso|dewa\s*19|once\s*mekel|judika|rossa|raisa|tulus/.test(value)) return 1.38;
   if (/podhub|podkesmas|daniel\s*mananta|has\s*creative|kasisolusi/.test(value)) return 1.28;
   if (/podcast.*politik|politik.*podcast|total\s*politik/.test(value)) return 1.16;
   if (/podcast.*komedi|komedi.*podcast|komika/.test(value)) return 1.1;
@@ -776,7 +800,7 @@ async function discoverTrendingWithYoutubeApi({ knownIds, options }) {
     return null;
   }
 
-  const categoryIds = listEnv("AUTO_DISCOVER_TRENDING_CATEGORY_IDS", ["24", "22"])
+  const categoryIds = listEnv("AUTO_DISCOVER_TRENDING_CATEGORY_IDS", ["24", "22", "10"])
     .map((item) => String(item || "").trim())
     .map((item) => item.toLowerCase() === "all" ? "" : item)
     .filter((item, index, list) => list.indexOf(item) === index);
@@ -1059,7 +1083,10 @@ export async function discoverAndQueueVideos(options = {}) {
     };
   }
 
-  const queries = listEnv("AUTO_DISCOVER_QUERY", DEFAULT_QUERIES);
+  const queries = uniqueList([
+    ...listEnv("AUTO_DISCOVER_QUERY", []),
+    ...DEFAULT_QUERIES
+  ]);
   const maxResults = numberEnv("AUTO_DISCOVER_MAX_RESULTS", 4, 1, 25);
   const requestedAddCount = numberEnv("AUTO_DISCOVER_ADD_COUNT", 1, 1, 10);
   const addCount = ignoreDailyQueueLimit

@@ -730,8 +730,8 @@ INSTAGRAM_CONTAINER_MAX_ATTEMPTS=90
 THREADS_UPLOAD_ENABLED=false
 THREADS_CONTAINER_POLL_SECONDS=6
 THREADS_CONTAINER_MAX_ATTEMPTS=90
-MAX_SCHEDULED_POSTS_PER_DAY=15
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=15
+MAX_SCHEDULED_POSTS_PER_DAY=0
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=0
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 ```
@@ -829,8 +829,8 @@ VIDEO_EFFECT_PRESET=veryfast
 THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
-MAX_SCHEDULED_POSTS_PER_DAY=15
-AUTO_DISCOVER_DAILY_QUEUE_LIMIT=15
+MAX_SCHEDULED_POSTS_PER_DAY=0
+AUTO_DISCOVER_DAILY_QUEUE_LIMIT=0
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
 
@@ -847,6 +847,9 @@ AUTO_DASHBOARD_ALLOW_REMOTE=false
 
 POST_CRON=0 8,13,19 * * *
 DEFAULT_THEME=auto
+AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru|podcast politik indonesia hari ini
+AUTO_DISCOVER_DAILY_QUERY=podcast musisi indonesia viral hari ini
+AUTO_DISCOVER_TRENDING_CATEGORY_IDS=24,22,10
 AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi|@TotalPolitik
 AUTO_DISCOVER_FRESH_UPLOAD_DAYS=3
 AUTO_DISCOVER_CHANNEL_MAX_RESULTS=5
@@ -976,11 +979,11 @@ Upload custom thumbnail ke YouTube. Default: `false`, karena thumbnail sudah dim
 
 #### `MAX_SCHEDULED_POSTS_PER_DAY`
 
-Batas publish dari run terjadwal GitHub Actions per hari. Default: `15`. Jika batas tercapai, workflow scheduled berikutnya akan skip.
+Batas publish dari run terjadwal GitHub Actions per hari. Default: `0`, artinya tidak ada limit harian. Jika diisi lebih dari `0` dan batas tercapai, workflow scheduled berikutnya akan skip.
 
 #### `AUTO_DISCOVER_DAILY_QUEUE_LIMIT`
 
-Batas jumlah video auto-discovery yang boleh dibuat untuk satu `target_date`. Default mengikuti `MAX_SCHEDULED_POSTS_PER_DAY` atau `15`, sehingga 15 jadwal cron tidak membuat ratusan queue baru.
+Batas jumlah video auto-discovery yang boleh dibuat untuk satu `target_date`. Default: `0`, artinya tidak ada limit queue harian. Jika ingin membatasi antrean auto-discovery, isi angka lebih dari `0`.
 
 #### `AUTO_DISCOVER_EXPIRE_OLD_QUEUE`
 
