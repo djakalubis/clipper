@@ -2,6 +2,8 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import axios from "axios";
 import { config } from "./config.js";
+import { buildSourceCreditBlock, ensureCaptionSourceCredit, stripCaptionSourceCredit } from "./caption-policy.js";
+import { extractYoutubeVideoId } from "./youtube.js";
 
 const tokenUrl = "https://oauth2.googleapis.com/token";
 const uploadUrl = "https://www.googleapis.com/upload/youtube/v3/videos";
@@ -173,37 +175,51 @@ export async function getYoutubeChannel() {
 }
 
 export function buildYoutubeMetadata({ job, output, caption }) {
+  const source = youtubeSourceDetails({ job, output });
+  const cleanCaption = stripCaptionSourceCredit(caption, {
+    sourceUrl: source.sourceUrl
+  });
+  const creditedCaption = ensureCaptionSourceCredit(cleanCaption, {
+    sourceUrl: source.sourceUrl,
+    sourceTitle: source.sourceTitle,
+    sourceChannel: source.sourceChannel,
+    sourceVideoId: source.sourceVideoId,
+    maxLength: 1600
+  });
   const context = [
     output.clipTranscript,
     output.caption,
     output.reason,
     output.title,
     output.hook,
-    caption
+    creditedCaption
   ].filter(Boolean).join(" ");
   const theme = detectTheme(context);
-  const person = detectPerson({ job, output, caption }) || "Podcast Indonesia";
-  const hook = buildHookTitle({ job, output, caption, theme });
+  const person = detectPerson({ job, output, caption: creditedCaption }) || "Podcast Indonesia";
+  const hook = buildHookTitle({ job, output, caption: creditedCaption, theme });
   const rawTitle = normalizeTitleWithPerson(config.youtube.titlePrefix, hook, person);
-  const hashtags = buildYoutubeHashtags({ theme, person, caption, context });
-  const firstLine = firstStrongLine(caption) || cleanText(output.clipTranscript || output.caption || hook).slice(0, 180);
+  const hashtags = buildYoutubeHashtags({ theme, person, caption: creditedCaption, context });
+  const firstLine = firstStrongLine(creditedCaption) || cleanText(output.clipTranscript || output.caption || hook).slice(0, 180);
+  const keywordLine = buildYoutubeKeywordLine({ theme, person, source });
   const angle = cleanText(output.selectedAngle || output.reason || output.hook || hook);
-  const insight = cleanText(output.reason || output.hook || output.clipTranscript || hook).slice(0, 220);
-  const dynamicTags = tagsFromCaption(caption);
+  const insight = cleanText(output.reason || output.hook || output.clipTranscript || hook).slice(0, 160);
+  const dynamicTags = tagsFromCaption(creditedCaption);
   const retentionLine = buildRetentionLine({ angle, theme });
+  const insightLine = insight && !sameText(insight, firstLine) && !sameText(insight, angle)
+    ? `Poin: ${insight}`
+    : "";
+  const engagementLine = buildEngagementLine({ theme, person });
+  const sourceCredit = buildSourceCreditBlock(source);
 
   const descriptionParts = [
     firstLine,
+    keywordLine,
     "",
     retentionLine,
-    insight ? `Poin utama: ${insight}` : "",
-    angle && angle !== insight ? `Sudut clip: ${angle}` : "",
+    ...(insightLine ? [insightLine] : []),
+    engagementLine,
     "",
-    `Topik: ${theme}`,
-    `Sumber: ${person}`,
-    output.title ? `Referensi: ${cleanText(output.title)}` : "",
-    "",
-    "Tonton sampai akhir supaya konteksnya tidak setengah.",
+    sourceCredit,
     "",
     hashtags.join(" "),
     config.youtube.descriptionFooter
@@ -222,7 +238,8 @@ export function buildYoutubeMetadata({ job, output, caption }) {
       "highlight podcast",
       theme,
       person,
-      ...keywordsFromText(`${hook} ${person} ${theme} ${angle} ${output.title || ""} ${output.hook || ""}`)
+      source.sourceChannel,
+      ...keywordsFromText(`${hook} ${person} ${theme} ${angle} ${source.sourceTitle} ${source.sourceChannel} ${output.title || ""} ${output.hook || ""}`)
     ])
   };
 }
@@ -280,6 +297,32 @@ function buildRetentionLine({ angle, theme }) {
   return fallback[theme] || fallback.inspirasi;
 }
 
+function buildYoutubeKeywordLine({ theme, person, source }) {
+  const cleanPerson = cleanText(person);
+  const cleanChannel = cleanText(source.sourceChannel);
+  const topic = cleanText(theme);
+  const subject = cleanPerson && cleanPerson !== "Podcast Indonesia"
+    ? cleanPerson
+    : cleanChannel || "Podcast Indonesia";
+  const topicText = topic && !["podcast", "inspirasi"].includes(topic)
+    ? ` tentang ${topic}`
+    : "";
+  return `Highlight podcast ${subject}${topicText} untuk Shorts Indonesia.`;
+}
+
+function buildEngagementLine({ theme, person }) {
+  const cleanPerson = cleanText(person);
+  const topic = theme === "keadilan"
+    ? "sikap ini"
+    : theme === "bisnis"
+      ? "cara mikir ini"
+      : "poin ini";
+  if (cleanPerson && cleanPerson !== "Podcast Indonesia") {
+    return `Tonton sampai akhir biar konteksnya utuh. Kamu setuju sama ${topic} dari ${cleanPerson}?`;
+  }
+  return `Tonton sampai akhir biar konteksnya utuh. Kamu setuju sama ${topic}?`;
+}
+
 function firstStrongLine(value) {
   return String(value || "")
     .split(/\r?\n/)
@@ -292,6 +335,43 @@ function cleanText(value = "") {
     .replace(/\s+/g, " ")
     .replace(/[^\p{L}\p{N}\s#@.,!?|:'"-]/gu, "")
     .trim();
+}
+
+function plainText(value = "") {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function youtubeSourceDetails({ job = {}, output = {} } = {}) {
+  const sourceUrl = plainText(job.source_url || job.url || output.sourceUrl || "");
+  const sourceTitle = cleanText(
+    job.source_title
+      || job.source_video_title
+      || output.sourceTitle
+      || output.originalTitle
+      || output.title
+      || ""
+  );
+  const sourceChannel = cleanText(
+    job.source_channel
+      || job.sourceChannel
+      || job.channel_title
+      || job.channelTitle
+      || output.sourceChannel
+      || output.channel
+      || ""
+  );
+  return {
+    sourceUrl,
+    sourceTitle,
+    sourceChannel,
+    sourceVideoId: extractYoutubeVideoId(sourceUrl)
+  };
+}
+
+function sameText(left, right) {
+  return cleanText(left).toLowerCase() === cleanText(right).toLowerCase();
 }
 
 function toHashtag(value = "") {

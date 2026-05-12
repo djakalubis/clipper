@@ -25,8 +25,7 @@ const DEFAULT_QUERIES = [
   "podcast penyanyi indonesia terbaru",
   "podcast band indonesia terbaru",
   "podcast deddy corbuzier terbaru",
-  "podcast vindes terbaru",
-  "podcast politik indonesia hari ini"
+  "podcast vindes terbaru"
 ];
 
 const FALLBACK_QUERIES = [
@@ -51,7 +50,6 @@ const FALLBACK_QUERIES = [
   "raditya dika podcast terbaru",
   "podcast vindes terbaru",
   "komika indonesia podcast terbaru",
-  "podcast politik indonesia",
   "podcast komedi indonesia"
 ];
 
@@ -63,13 +61,13 @@ const DEFAULT_CHANNEL_HANDLES = [
   "@HASCreative",
   "@podkesmas",
   "@podhub",
-  "@Kasisolusi",
-  "@TotalPolitik"
+  "@Kasisolusi"
 ];
 
-const PODCAST_FORMAT_RE = /podcast|siniar|podhub|podkesmas|close\s*the\s*door|vindes|deddy|corbuzier|raditya|daniel\s*mananta|has\s*creative|kasisolusi|total\s*politik|podcast\s*politik|podcast\s*komedi/i;
+const PODCAST_FORMAT_RE = /podcast|siniar|podhub|podkesmas|close\s*the\s*door|vindes|deddy|corbuzier|raditya|daniel\s*mananta|has\s*creative|kasisolusi|podcast\s*komedi/i;
 const MUSICIAN_TOPIC_RE = /musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*dhani|ari\s*lasso|dewa\s*19|once\s*mekel|judika|rossa|raisa|tulus|maia\s*estianty|anang|melly\s*goeslaw/i;
 const PODCAST_TOPIC_RE = new RegExp(`${PODCAST_FORMAT_RE.source}|${MUSICIAN_TOPIC_RE.source}`, "i");
+const POLITICAL_TOPIC_RE = /politik|pilpres|pemilu|partai|dpr|mpr|presiden|wakil\s*presiden|menteri|kabinet|reshuffle|prabowo|jokowi|gibran|anies|ganjar|bawaslu|kpu|kompastv|kompas\s*tv|inews|cnn\s*indonesia|forum\s*keadilan|akbar\s*faizal|total\s*politik|tempo(?:dotco)?|bocor\s*alus|brin/i;
 const NON_PODCAST_NOISE_RE = /official\s*music\s*video|official\s*audio|video\s*klip|lirik|lyrics|karaoke|konser|live\s*session|trailer|teaser|sinetron|drama|full\s*movie|film\s*pendek|gameplay|live\s*stream\s*game|highlight\s*bola/i;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 const DISCOVERY_CACHE_FILE = "discovery-cache.json";
@@ -105,6 +103,10 @@ function listEnvMany(names, fallback = []) {
 
 function uniqueList(items) {
   return [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function nonPoliticalList(items) {
+  return uniqueList(items).filter((item) => !POLITICAL_TOPIC_RE.test(item));
 }
 
 function daySerial(dateString) {
@@ -276,6 +278,7 @@ function isTrustedPodcastChannelSource(item) {
 
 function isPodcastCandidate(item) {
   const text = candidateText(item);
+  if (POLITICAL_TOPIC_RE.test(text)) return false;
   if (NON_PODCAST_NOISE_RE.test(text) && !PODCAST_FORMAT_RE.test(text)) return false;
   return PODCAST_TOPIC_RE.test(text) || isTrustedPodcastChannelSource(item);
 }
@@ -292,7 +295,6 @@ function topicMultiplier(text) {
   if (/podcast.*artis|artis.*podcast|deddy|corbuzier|vindes|raditya|close\s*the\s*door/.test(value)) return 1.4;
   if (/musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*dhani|ari\s*lasso|dewa\s*19|once\s*mekel|judika|rossa|raisa|tulus/.test(value)) return 1.38;
   if (/podhub|podkesmas|daniel\s*mananta|has\s*creative|kasisolusi/.test(value)) return 1.28;
-  if (/podcast.*politik|politik.*podcast|total\s*politik/.test(value)) return 1.16;
   if (/podcast.*komedi|komedi.*podcast|komika/.test(value)) return 1.1;
   return 1;
 }
@@ -683,7 +685,7 @@ async function discoverWithYoutubeApi({ queries, knownIds, options, channelOnly 
   }
 
   const configuredChannelIds = listEnv("AUTO_DISCOVER_CHANNEL_IDS", []);
-  const channelHandles = listEnv("AUTO_DISCOVER_CHANNEL_HANDLES", DEFAULT_CHANNEL_HANDLES);
+  const channelHandles = nonPoliticalList(listEnv("AUTO_DISCOVER_CHANNEL_HANDLES", DEFAULT_CHANNEL_HANDLES));
   let lastError = null;
   for (const credential of credentials) {
     const ids = [];
@@ -864,7 +866,7 @@ async function discoverWithYtDlp({ queries, knownIds, options }) {
 }
 
 async function discoverChannelsWithYtDlp({ knownIds, options }) {
-  const channelHandles = listEnv("AUTO_DISCOVER_CHANNEL_HANDLES", DEFAULT_CHANNEL_HANDLES);
+  const channelHandles = nonPoliticalList(listEnv("AUTO_DISCOVER_CHANNEL_HANDLES", DEFAULT_CHANNEL_HANDLES));
   const candidates = new Map();
   for (const handle of channelHandles) {
     try {
@@ -962,7 +964,7 @@ async function selectDiscoveredCandidates(rawCandidates, options, addCount, mode
 }
 
 function fallbackPasses(baseQueries, baseOptions) {
-  const fallbackQueries = uniqueList([...baseQueries, ...FALLBACK_QUERIES]);
+  const fallbackQueries = nonPoliticalList([...baseQueries, ...FALLBACK_QUERIES]);
   const useDailyApi = boolEnv("AUTO_DISCOVER_USE_API", false);
   const dailyApiMaxResults = numberEnv("AUTO_DISCOVER_DAILY_SEARCH_RESULTS", 7, 1, 50);
   const trendingMaxResults = numberEnv("AUTO_DISCOVER_TRENDING_MAX_RESULTS", 25, 1, 50);
@@ -1083,7 +1085,7 @@ export async function discoverAndQueueVideos(options = {}) {
     };
   }
 
-  const queries = uniqueList([
+  const queries = nonPoliticalList([
     ...listEnv("AUTO_DISCOVER_QUERY", []),
     ...DEFAULT_QUERIES
   ]);

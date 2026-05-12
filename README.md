@@ -196,8 +196,8 @@ Aturan cron harian:
 
 ```txt
 Workflow scheduled berjalan 15 kali per hari.
-Jika publish hari ini masih di bawah MAX_SCHEDULED_POSTS_PER_DAY, lanjut proses.
-Jika batas harian sudah tercapai, skip agar tidak melewati target posting.
+MAX_SCHEDULED_POSTS_PER_DAY default `0`, jadi scheduled run tidak memakai limit harian.
+Jika ingin membatasi posting, isi MAX_SCHEDULED_POSTS_PER_DAY lebih dari `0`.
 ```
 
 ---
@@ -847,10 +847,10 @@ AUTO_DASHBOARD_ALLOW_REMOTE=false
 
 POST_CRON=0 8,13,19 * * *
 DEFAULT_THEME=auto
-AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru|podcast politik indonesia hari ini
+AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru
 AUTO_DISCOVER_DAILY_QUERY=podcast musisi indonesia viral hari ini
 AUTO_DISCOVER_TRENDING_CATEGORY_IDS=24,22,10
-AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi|@TotalPolitik
+AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi
 AUTO_DISCOVER_FRESH_UPLOAD_DAYS=3
 AUTO_DISCOVER_CHANNEL_MAX_RESULTS=5
 

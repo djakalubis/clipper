@@ -9,6 +9,7 @@ import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
 import { buildYoutubeMetadata, isYoutubeQuotaError, publishToYoutube, setYoutubeThumbnail } from "./youtube-publisher.js";
 import { publishToTikTok } from "./tiktok.js";
 import { publishToThreads } from "./threads.js";
+import { stripCaptionSourceCredit } from "./caption-policy.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -166,11 +167,14 @@ let threads = job.threads_media_id ? {
 try {
   const thumbnailPath = await resolveThumbnailPath(job);
   const videoPath = await resolveVideoPath(job);
+  const socialCaption = stripCaptionSourceCredit(job.caption || "", {
+    sourceUrl: job.source_url
+  });
   const output = {
     title: job.source_title,
     hook: job.source_title,
     finalAbsPath: videoPath,
-    caption: job.caption || "",
+    caption: socialCaption,
     clipTranscript: job.clipTranscript || "",
     selectedAngle: job.selectedAngle || ""
   };
@@ -179,7 +183,7 @@ try {
     const metadata = buildYoutubeMetadata({
       job,
       output,
-      caption: job.caption || ""
+      caption: socialCaption
     });
     youtube = await publishToYoutube({
       videoPath,
@@ -230,7 +234,7 @@ try {
     if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
     instagram = await publishReel({
       videoUrl: job.public_video_url,
-      caption: job.caption || ""
+      caption: socialCaption
     });
   }
 
@@ -239,7 +243,7 @@ try {
     tiktok = await publishToTikTok({
       videoUrl: job.public_video_url,
       videoPath,
-      caption: job.caption || ""
+      caption: socialCaption
     });
   }
 
@@ -247,7 +251,7 @@ try {
     if (!job.public_video_url) throw new Error("public_video_url kosong, Threads butuh URL video publik dari remote storage.");
     threads = await publishToThreads({
       videoUrl: job.public_video_url,
-      caption: job.caption || ""
+      caption: socialCaption
     });
   }
 
@@ -294,7 +298,7 @@ try {
     final_video_path: job.final_video_path,
     public_video_url: job.public_video_url || "",
     public_thumbnail_url: job.public_thumbnail_url || "",
-    caption: job.caption || "",
+    caption: socialCaption,
     instagram_media_id: instagram?.mediaId || "",
     tiktok_publish_id: tiktok?.publishId || "",
     tiktok_mode: tiktok?.mode || "",

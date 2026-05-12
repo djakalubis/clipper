@@ -1,14 +1,26 @@
 const DEFAULT_MAX_CAPTION_LENGTH = 2200;
 const SOURCE_CREDIT_NOTE = "Credit: highlight dari video sumber.";
+const YOUTUBE_URL_RE = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\/[^\s)]+/gi;
 
-export function buildSourceCreditBlock({ sourceUrl = "", sourceTitle = "" } = {}) {
+export function buildSourceCreditBlock({
+  sourceUrl = "",
+  sourceTitle = "",
+  sourceChannel = "",
+  sourceVideoId = ""
+} = {}) {
   const url = normalizeLine(sourceUrl);
   if (!url) return "";
 
   const title = normalizeLine(sourceTitle);
+  const channel = normalizeLine(sourceChannel);
+  const videoId = normalizeLine(sourceVideoId);
   const lines = [];
-  if (title) lines.push(`Sumber lengkap: ${title}`);
-  lines.push(url);
+  if (channel) lines.push(`Source Channel: ${channel}`);
+  if (title) lines.push(channel ? `Source Video: ${title}` : `Sumber lengkap: ${title}`);
+  lines.push(channel ? `Source Link: ${url}` : url);
+  if (channel && title && videoId) {
+    lines.push(`YouTube attribution: ${channel} | ${title} | ${videoId}`);
+  }
   lines.push(SOURCE_CREDIT_NOTE);
   return lines.join("\n");
 }
@@ -16,21 +28,34 @@ export function buildSourceCreditBlock({ sourceUrl = "", sourceTitle = "" } = {}
 export function ensureCaptionSourceCredit(caption, {
   sourceUrl = "",
   sourceTitle = "",
+  sourceChannel = "",
+  sourceVideoId = "",
   maxLength = DEFAULT_MAX_CAPTION_LENGTH
 } = {}) {
   const url = normalizeLine(sourceUrl);
   const cleaned = normalizeCaption(caption);
   if (!url) return limitText(cleaned, maxLength);
 
+  const title = normalizeLine(sourceTitle);
+  const channel = normalizeLine(sourceChannel);
+  const videoId = normalizeLine(sourceVideoId);
   const hasSource = cleaned.includes(url);
+  const hasTitle = !title || includesText(cleaned, title);
+  const hasChannel = !channel || includesText(cleaned, channel);
   const hasCredit = /(credit|kredit|terima\s+kasih|sumber)/i.test(cleaned)
     && /(highlight|clip|klip|podcast|sumber)/i.test(cleaned);
-  if (hasSource && hasCredit) return limitText(cleaned, maxLength);
+  if (hasSource && hasCredit && hasTitle && hasChannel) return limitText(cleaned, maxLength);
 
   const { body, hashtags } = splitTrailingHashtags(cleaned);
   const creditLines = [];
-  if (!hasSource) {
-    const title = normalizeLine(sourceTitle);
+  if (channel) {
+    if (!hasChannel) creditLines.push(`Source Channel: ${channel}`);
+    if (title && !hasTitle) creditLines.push(`Source Video: ${title}`);
+    if (!hasSource) creditLines.push(`Source Link: ${url}`);
+    if (videoId && channel && title && (!hasChannel || !hasTitle || !hasSource)) {
+      creditLines.push(`YouTube attribution: ${channel} | ${title} | ${videoId}`);
+    }
+  } else if (!hasSource) {
     if (title) creditLines.push(`Sumber lengkap: ${title}`);
     creditLines.push(url);
   }
@@ -46,10 +71,43 @@ export function ensureCaptionSourceCredit(caption, {
   });
 }
 
+export function stripCaptionSourceCredit(caption, {
+  sourceUrl = ""
+} = {}) {
+  const url = normalizeLine(sourceUrl);
+  const cleaned = normalizeCaption(caption);
+  if (!cleaned) return "";
+
+  return normalizeCaption(cleaned
+    .split("\n")
+    .map((line) => line
+      .replace(YOUTUBE_URL_RE, "")
+      .replace(url, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim())
+    .filter((line) => {
+      const value = normalizeLine(line);
+      if (!value) return true;
+      if (/^(source\s+(channel|video|link)|youtube\s+attribution)\s*:/i.test(value)) return false;
+      if (/^sumber\s+lengkap\s*:/i.test(value)) return false;
+      if (/^sumber\s+video\s+lengkap\s*:/i.test(value)) return false;
+      if (/^terima\s+kasih\s+kepada\s+pemilik\s+podcast\s+sumber/i.test(value)) return false;
+      if (value === SOURCE_CREDIT_NOTE) return false;
+      return true;
+    })
+    .join("\n"));
+}
+
 function normalizeLine(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function includesText(source, value) {
+  const text = normalizeLine(source).toLowerCase();
+  const needle = normalizeLine(value).toLowerCase();
+  return !needle || text.includes(needle);
 }
 
 function normalizeCaption(value) {

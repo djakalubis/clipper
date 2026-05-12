@@ -7,7 +7,7 @@ import { appendHistory, publishedCountToday } from "./history.js";
 import { addVideo, createJobRecord, selectNextVideo, updateVideoStatus } from "./selector.js";
 import { runClipper } from "./clipper-runner.js";
 import { generateCaption, generateFrameQuoteText, generateThumbnailText } from "./caption.js";
-import { ensureCaptionSourceCredit } from "./caption-policy.js";
+import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { generateThumbnail, prependThumbnailIntro } from "./thumbnail.js";
 import { fileExists, uploadHistoryFile, uploadJobFiles, validatePublicUrl } from "./uploader.js";
 import { publishReel } from "./instagram.js";
@@ -483,9 +483,8 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     clipperRoot: clipperResult.clipperRoot,
     aiProvider
   });
-  const caption = ensureCaptionSourceCredit(generatedCaption, {
-    sourceUrl: video.url || video.source_url,
-    sourceTitle: video.source_title || output.title || job.source_title
+  const caption = stripCaptionSourceCredit(generatedCaption, {
+    sourceUrl: video.url || video.source_url
   });
   await updateJob(job.job_id, {
     caption_status: "done",
@@ -777,9 +776,8 @@ async function updateJob(jobId, patch) {
 }
 
 async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
-  const publishCaption = ensureCaptionSourceCredit(caption, {
-    sourceUrl: job.source_url,
-    sourceTitle: job.source_title || output.title
+  const socialCaption = stripCaptionSourceCredit(caption, {
+    sourceUrl: job.source_url
   });
   const platformResults = {
     instagram: null,
@@ -796,7 +794,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
   if (config.youtube.enabled) {
     platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
       await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
-      const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: publishCaption });
+      const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
       return publishToYoutube({
         videoPath: output.finalAbsPath,
         thumbnailPath: thumbnail?.path || "",
@@ -816,7 +814,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
         videoUrl: upload.videoUrl,
         videoPath: output.finalAbsPath,
         title: output.title || job.source_title || "Podcast Clip",
-        description: publishCaption,
+        description: socialCaption,
         thumbnailPath: thumbnail?.path || ""
       });
     });
@@ -833,7 +831,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       });
       return publishReel({
         videoUrl: instagramVideo.videoUrl,
-        caption: publishCaption,
+        caption: socialCaption,
         coverUrl: upload.thumbnailUrl || ""
       });
     });
@@ -846,7 +844,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       return publishToTikTok({
         videoUrl: upload.videoUrl,
         videoPath: output.finalAbsPath,
-        caption: publishCaption
+        caption: socialCaption
       });
     });
   }
@@ -857,11 +855,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       await updateJob(job.job_id, { threads_status: "processing", threads_error: "" });
       return publishToThreads({
         videoUrl: upload.videoUrl,
-        caption: ensureCaptionSourceCredit(publishCaption, {
-          sourceUrl: job.source_url,
-          sourceTitle: job.source_title || output.title,
-          maxLength: 500
-        })
+        caption: socialCaption
       });
     });
   }
