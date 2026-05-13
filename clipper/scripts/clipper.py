@@ -1681,7 +1681,7 @@ def subtitle_style_config(config):
     margin_h = clamp_int(parse_int(os.environ.get("SUBTITLE_MARGIN_H"), default_margin_h), min_margin_h, max_margin_h)
     margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_MARGIN_V"), 550), 550, max(550, int(height * 0.48)))
     max_lines = clamp_int(parse_int(os.environ.get("SUBTITLE_MAX_LINES"), 2), 1, 3)
-    emoji_margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_MARGIN_V"), margin_v + int(font_size * 1.9)), margin_v, max(margin_v, height - 120))
+    emoji_margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_MARGIN_V"), margin_v + int(font_size * 4.6)), margin_v, max(margin_v, height - 120))
 
     return {
         "width": width,
@@ -2277,6 +2277,23 @@ def draw_popup_scream(path):
     save_popup_canvas(image, path)
 
 
+def emoji_popup_y_position(style, size):
+    height = int(style["height"])
+    margin_v = int(style["margin_v"])
+    font_size = int(style["font_size"])
+    max_lines = int(style["max_lines"])
+    outline = int(style["outline"])
+    configured_margin = int(style["emoji_margin_v"])
+
+    line_height = max(font_size + (outline * 2), int(font_size * 1.38))
+    subtitle_block_height = line_height * max(1, max_lines)
+    default_gap = max(52, int(font_size * 1.25))
+    gap = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_SUBTITLE_GAP"), default_gap), 36, 180)
+    required_margin = margin_v + subtitle_block_height + gap
+    final_margin = clamp_int(max(configured_margin, required_margin), margin_v, max(margin_v, height - 80))
+    return max(0, height - final_margin - int(size))
+
+
 def apply_emoji_popups(video_path, ass_path, config, job_id, index):
     video_path = Path(video_path)
     if not video_path.is_absolute():
@@ -2301,8 +2318,7 @@ def apply_emoji_popups(video_path, ass_path, config, job_id, index):
     assets = ensure_emoji_popup_assets()
     style = subtitle_style_config(config)
     size = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_IMAGE_SIZE"), max(132, int(style["emoji_font_size"] * 1.65))), 72, 260)
-    margin_v = int(style["emoji_margin_v"])
-    y = max(0, int(style["height"]) - margin_v - size)
+    y = emoji_popup_y_position(style, size)
     x_expr = "(W-w)/2"
     y_expr = str(y)
 
