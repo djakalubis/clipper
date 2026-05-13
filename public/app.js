@@ -433,7 +433,14 @@ function renderPlatforms(cfg, stats) {
     platformItem("Instagram", cfg.instagramEnabled, stats, "instagram"),
     platformItem("Facebook", cfg.facebookEnabled, stats, "facebook"),
     platformItem("YouTube", cfg.youtubeEnabled, stats, "youtube", youtubeNeedsReconnect ? "reconnect" : ""),
-    platformItem("TikTok", cfg.tiktokEnabled, stats, "tiktok", cfg.tiktokPaused ? "paused" : ""),
+    platformItem(
+      "TikTok",
+      cfg.tiktokEnabled,
+      stats,
+      "tiktok",
+      cfg.tiktokPaused ? "paused" : "",
+      cfg.tiktokPublishMode || "direct"
+    ),
     platformItem("Threads", cfg.threadsEnabled, stats, "threads"),
     ["Storage", Boolean(cfg.uploadDriver), (cfg.uploadDriver || "local").toUpperCase()],
     ["Publish", cfg.autoPublish && !cfg.dryRun, cfg.dryRun ? "dry-run" : cfg.autoPublish ? "auto" : "manual"],
@@ -457,13 +464,13 @@ function youtubeReconnectIssue(jobs = []) {
   return /invalid_grant|refresh token|reconnect/i.test(text);
 }
 
-function platformItem(label, envEnabled, stats, key, forcedValue = "") {
+function platformItem(label, envEnabled, stats, key, forcedValue = "", enabledValue = "on") {
   if (forcedValue) return [label, false, forcedValue];
   const activity = platformActivity(stats.jobs, key);
   if (activity.active) {
     return [label, true, envEnabled ? activity.value : "via Action"];
   }
-  return [label, envEnabled, envEnabled ? "on" : "off"];
+  return [label, envEnabled, envEnabled ? enabledValue : "off"];
 }
 
 function platformActivity(jobs = [], key) {

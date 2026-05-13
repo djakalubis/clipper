@@ -302,6 +302,8 @@ app.get("/api/state", async (_req, res) => {
       youtubeEnabled: config.youtube.enabled,
       tiktokEnabled: config.tiktok.enabled,
       tiktokPaused: config.tiktok.paused,
+      tiktokPublishMode: config.tiktok.publishMode,
+      tiktokPrivacyLevel: config.tiktok.privacyLevel,
       threadsEnabled: config.threads.enabled,
       videoFrameEnabled: config.videoEffects.frameEnabled,
       videoFilterEnabled: config.videoEffects.filterEnabled,
