@@ -50,11 +50,11 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   const clipCount = String(video.clip_count || process.env.CLIP_COUNT || config.clipper.clipCount);
   const useSubtitleHighlight = boolInput(
     video.use_subtitle_highlight ?? job.use_subtitle_highlight,
-    boolInput(process.env.SUBTITLE_WORD_HIGHLIGHT_ENABLED, false)
+    boolInput(process.env.SUBTITLE_WORD_HIGHLIGHT_ENABLED, true)
   );
   const useEmojiPopup = boolInput(
     video.use_subtitle_emoji_popup ?? job.use_subtitle_emoji_popup,
-    boolInput(process.env.SUBTITLE_EMOJI_POPUP_ENABLED, false)
+    boolInput(process.env.SUBTITLE_EMOJI_POPUP_ENABLED, true)
   );
   const subtitleMarginV = Math.max(
     550,
