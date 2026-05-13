@@ -10,6 +10,7 @@ import { buildYoutubeMetadata, isYoutubeQuotaError, publishToYoutube, setYoutube
 import { publishToTikTok } from "./tiktok.js";
 import { publishToThreads } from "./threads.js";
 import { stripCaptionSourceCredit } from "./caption-policy.js";
+import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -18,6 +19,14 @@ function argValue(name, fallback = "") {
 }
 
 function latestReadyJob(jobs) {
+  const retryableStatuses = new Set([
+    "ready_to_publish",
+    "publish_failed",
+    "failed_publish",
+    "published_with_warnings",
+    "quota_exceeded"
+  ]);
+
   return jobs
     .filter((job) => {
       const needsPlatform = [
@@ -28,7 +37,7 @@ function latestReadyJob(jobs) {
       ].some(Boolean);
       if (!needsPlatform) return false;
       return [job.status, job.publish_status, job.youtube_status]
-        .some((status) => ["ready_to_publish", "publish_failed", "failed_publish"].includes(status));
+        .some((status) => retryableStatuses.has(status));
     })
     .sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")))[0] || null;
 }
@@ -91,6 +100,40 @@ async function resolveVideoPath(job) {
   if (!buffer.length) throw new Error("Video ready dari remote storage kosong.");
   await fs.writeFile(target, buffer);
   return target;
+}
+
+function summarizePlatformErrors(errors) {
+  return Object.entries(errors)
+    .filter(([, message]) => message)
+    .map(([platform, message]) => `${platform}: ${message}`)
+    .join("; ");
+}
+
+function readyPlatformStatus({ result, enabled, error, quotaExceeded = false, successStatus = "published" }) {
+  if (result) return successStatus;
+  if (!enabled) return "disabled";
+  if (quotaExceeded) return "quota_exceeded";
+  if (error) return "failed";
+  return "skipped";
+}
+
+async function publishReadyPlatform(name, jobId, errors, quotaExceeded, callback) {
+  try {
+    return await callback();
+  } catch (error) {
+    errors[name] = error.message;
+    if (name === "youtube" && isYoutubeQuotaError(error)) {
+      quotaExceeded.youtube = true;
+    }
+    await appendLog("platform_publish_failed", {
+      job_id: jobId,
+      platform: name,
+      error: error.message,
+      quota_exceeded: name === "youtube" && isYoutubeQuotaError(error)
+    });
+    console.warn(`${name} publish gagal, workflow lanjut: ${error.message}`);
+    return null;
+  }
 }
 
 const jobId = argValue("--job", "");
@@ -163,6 +206,8 @@ let threads = job.threads_media_id ? {
   url: job.threads_url || "",
   skipped: true
 } : null;
+const platformErrors = {};
+const quotaExceeded = {};
 
 try {
   const thumbnailPath = await resolveThumbnailPath(job);
@@ -180,16 +225,39 @@ try {
   };
 
   if (!onlyYoutubeThumbnail && config.youtube.enabled && (!youtube || forceYoutube)) {
-    const metadata = buildYoutubeMetadata({
-      job,
-      output,
-      caption: socialCaption
-    });
-    youtube = await publishToYoutube({
-      videoPath,
-      thumbnailPath,
-      ...metadata
-    });
+    const cooldown = await youtubeQuotaCooldown("upload");
+    if (cooldown.active) {
+      platformErrors.youtube = `YouTube quota cooldown aktif sampai ${cooldown.until}.`;
+      quotaExceeded.youtube = true;
+      await appendLog("youtube_quota_cooldown_skip", {
+        job_id: job.job_id,
+        until: cooldown.until,
+        reason: cooldown.reason || ""
+      });
+      console.warn(`YouTube upload dilewati sampai reset quota: ${cooldown.until}`);
+    } else {
+      const publishedYoutube = await publishReadyPlatform("youtube", job.job_id, platformErrors, quotaExceeded, async () => {
+        const metadata = buildYoutubeMetadata({
+          job,
+          output,
+          caption: socialCaption
+        });
+        return publishToYoutube({
+          videoPath,
+          thumbnailPath,
+          ...metadata
+        });
+      });
+      if (publishedYoutube) {
+        youtube = publishedYoutube;
+        await clearYoutubeQuotaExceeded("upload");
+      } else if (quotaExceeded.youtube) {
+        const quotaState = await markYoutubeQuotaExceeded("upload", platformErrors.youtube);
+        if (quotaState.until) {
+          console.warn(`YouTube quota cooldown disimpan sampai ${quotaState.until}.`);
+        }
+      }
+    }
   }
 
   if (
@@ -231,52 +299,125 @@ try {
   }
 
   if (config.instagram.enabled && !instagram) {
-    if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
-    instagram = await publishReel({
-      videoUrl: job.public_video_url,
-      caption: socialCaption
+    const publishedInstagram = await publishReadyPlatform("instagram", job.job_id, platformErrors, quotaExceeded, async () => {
+      if (!job.public_video_url) throw new Error("public_video_url kosong, Instagram butuh URL video publik dari remote storage.");
+      return publishReel({
+        videoUrl: job.public_video_url,
+        caption: socialCaption
+      });
     });
+    if (publishedInstagram) instagram = publishedInstagram;
   }
 
   if (config.tiktok.enabled && !tiktok) {
-    if (!job.public_video_url) throw new Error("public_video_url kosong, TikTok butuh URL video publik dari remote storage.");
-    tiktok = await publishToTikTok({
-      videoUrl: job.public_video_url,
-      videoPath,
-      caption: socialCaption
+    const publishedTikTok = await publishReadyPlatform("tiktok", job.job_id, platformErrors, quotaExceeded, async () => {
+      if (!job.public_video_url) throw new Error("public_video_url kosong, TikTok butuh URL video publik dari remote storage.");
+      return publishToTikTok({
+        videoUrl: job.public_video_url,
+        videoPath,
+        caption: socialCaption
+      });
     });
+    if (publishedTikTok) tiktok = publishedTikTok;
   }
 
   if (config.threads.enabled && !threads) {
-    if (!job.public_video_url) throw new Error("public_video_url kosong, Threads butuh URL video publik dari remote storage.");
-    threads = await publishToThreads({
-      videoUrl: job.public_video_url,
-      caption: socialCaption
+    const publishedThreads = await publishReadyPlatform("threads", job.job_id, platformErrors, quotaExceeded, async () => {
+      if (!job.public_video_url) throw new Error("public_video_url kosong, Threads butuh URL video publik dari remote storage.");
+      return publishToThreads({
+        videoUrl: job.public_video_url,
+        caption: socialCaption
+      });
     });
+    if (publishedThreads) threads = publishedThreads;
   }
 
   if (!youtube && !instagram && !tiktok && !threads) {
-    throw new Error("Tidak ada publish yang dijalankan.");
+    if (quotaExceeded.youtube) {
+      await patchItem("jobs", job.job_id, {
+        status: "ready_to_publish",
+        publish_status: "queued",
+        youtube_status: "quota_exceeded",
+        youtube_error: platformErrors.youtube || "",
+        instagram_status: readyPlatformStatus({
+          result: instagram,
+          enabled: config.instagram.enabled,
+          error: platformErrors.instagram
+        }),
+        instagram_error: platformErrors.instagram || "",
+        tiktok_status: readyPlatformStatus({
+          result: tiktok,
+          enabled: config.tiktok.enabled,
+          error: platformErrors.tiktok,
+          successStatus: "submitted"
+        }),
+        tiktok_error: platformErrors.tiktok || "",
+        threads_status: readyPlatformStatus({
+          result: threads,
+          enabled: config.threads.enabled,
+          error: platformErrors.threads
+        }),
+        threads_error: platformErrors.threads || "",
+        error_message: summarizePlatformErrors(platformErrors) || "Quota YouTube habis; menunggu queue reguler berikutnya."
+      });
+      await appendLog("youtube_quota_deferred", {
+        job_id: job.job_id,
+        error: platformErrors.youtube || ""
+      });
+      await uploadStateToRemote().catch(() => {});
+      console.log(JSON.stringify({
+        status: "queued",
+        job_id: job.job_id,
+        error: platformErrors.youtube || "Quota YouTube habis."
+      }, null, 2));
+      process.exit(0);
+    }
+
+    throw new Error(summarizePlatformErrors(platformErrors) || "Tidak ada publish yang berhasil dijalankan.");
   }
 
   const now = new Date().toISOString();
+  const hasPlatformErrors = Boolean(Object.keys(platformErrors).length);
   await patchItem("jobs", job.job_id, {
     status: "published",
-    publish_status: "published",
-    youtube_status: youtube ? "published" : "disabled",
+    publish_status: hasPlatformErrors ? "published_with_warnings" : "published",
+    youtube_status: readyPlatformStatus({
+      result: youtube,
+      enabled: config.youtube.enabled,
+      error: platformErrors.youtube,
+      quotaExceeded: quotaExceeded.youtube
+    }),
     youtube_video_id: youtube?.videoId || "",
     youtube_url: youtube?.url || "",
     youtube_custom_thumbnail: youtube?.customThumbnail === true,
     youtube_thumbnail_error: youtube?.thumbnailError || "",
+    youtube_error: platformErrors.youtube || "",
     youtube_published_at: youtube?.skipped ? job.youtube_published_at : youtube ? now : "",
-    instagram_status: instagram ? "published" : "disabled",
+    instagram_status: readyPlatformStatus({
+      result: instagram,
+      enabled: config.instagram.enabled,
+      error: platformErrors.instagram
+    }),
     instagram_media_id: instagram?.mediaId || "",
-    tiktok_status: tiktok ? "submitted" : "disabled",
+    instagram_error: platformErrors.instagram || "",
+    tiktok_status: readyPlatformStatus({
+      result: tiktok,
+      enabled: config.tiktok.enabled,
+      error: platformErrors.tiktok,
+      successStatus: "submitted"
+    }),
     tiktok_publish_id: tiktok?.publishId || "",
     tiktok_mode: tiktok?.mode || "",
-    threads_status: threads ? "published" : "disabled",
+    tiktok_error: platformErrors.tiktok || "",
+    threads_status: readyPlatformStatus({
+      result: threads,
+      enabled: config.threads.enabled,
+      error: platformErrors.threads
+    }),
     threads_media_id: threads?.mediaId || "",
     threads_url: threads?.url || "",
+    threads_error: platformErrors.threads || "",
+    error_message: hasPlatformErrors ? summarizePlatformErrors(platformErrors) : "",
     published_at: now
   });
   await patchVideo(job.video_id, {
@@ -308,22 +449,24 @@ try {
     threads_url: threads?.url || "",
     published_at: now
   });
-  await appendLog("platform_published", {
+  await appendLog(hasPlatformErrors ? "platform_published_with_warnings" : "platform_published", {
     job_id: job.job_id,
     instagram_media_id: instagram?.mediaId || "",
     tiktok_publish_id: tiktok?.publishId || "",
     youtube_video_id: youtube?.videoId || "",
     youtube_url: youtube?.url || "",
-    threads_media_id: threads?.mediaId || ""
+    threads_media_id: threads?.mediaId || "",
+    errors: platformErrors
   });
   await uploadStateToRemote().catch(() => {});
   console.log(JSON.stringify({
-    status: "published",
+    status: hasPlatformErrors ? "published_with_warnings" : "published",
     job_id: job.job_id,
     instagram,
     tiktok,
     youtube,
-    threads
+    threads,
+    errors: platformErrors
   }, null, 2));
 } catch (error) {
   const hasYoutube = Boolean(youtube?.url || youtube?.videoId || job.youtube_url || job.youtube_video_id);

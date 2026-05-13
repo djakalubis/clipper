@@ -10,6 +10,7 @@ data/videos.json
 data/jobs.json
 data/history.json
 data/discovery-cache.json
+data/youtube-quota.json
 
 .env
 *.env

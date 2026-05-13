@@ -10,7 +10,8 @@ const stateFiles = [
   "prompts.json",
   "jobs.json",
   "history.json",
-  "discovery-cache.json"
+  "discovery-cache.json",
+  "youtube-quota.json"
 ];
 
 function remoteStateDir() {

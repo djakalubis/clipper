@@ -9,6 +9,7 @@ import { uploadStateToRemote } from "./state-sync.js";
 import { todayDate } from "./job-id.js";
 import { extractYoutubeVideoId } from "./youtube.js";
 import { getYoutubeAccessToken } from "./youtube-publisher.js";
+import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 
 const DEFAULT_QUERIES = [
   "podcast indonesia hari ini",
@@ -516,6 +517,13 @@ function publishedAfterDate(days) {
 }
 
 async function fetchYoutube(pathname, params, credential) {
+  const cooldown = await youtubeQuotaCooldown("data_api");
+  if (cooldown.active) {
+    const error = new Error(`YouTube Data API quota cooldown aktif sampai ${cooldown.until}.`);
+    error.quotaExceeded = true;
+    throw error;
+  }
+
   const url = new URL(`${YOUTUBE_API_BASE}/${pathname}`);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
@@ -533,9 +541,13 @@ async function fetchYoutube(pathname, params, credential) {
     const message = body?.error?.message || `${response.status} ${response.statusText}`;
     const error = new Error(`YouTube API ${pathname} gagal: ${message}`);
     error.reason = body?.error?.errors?.[0]?.reason || "";
-    if (isYoutubeQuotaError(error) || error.reason === "quotaExceeded") error.quotaExceeded = true;
+    if (isYoutubeQuotaError(error) || error.reason === "quotaExceeded") {
+      error.quotaExceeded = true;
+      await markYoutubeQuotaExceeded("data_api", error.message).catch(() => {});
+    }
     throw error;
   }
+  await clearYoutubeQuotaExceeded("data_api").catch(() => {});
   return body;
 }
 
@@ -678,6 +690,13 @@ async function discoverWithYoutubeApi({ queries, knownIds, options, channelOnly 
     return null;
   }
 
+  const cooldown = await youtubeQuotaCooldown("data_api");
+  if (cooldown.active) {
+    console.log(`AUTO DISCOVERY: YouTube API cooldown sampai ${cooldown.until}, fallback ke yt-dlp search.`);
+    youtubeApiQuotaExhausted = true;
+    return null;
+  }
+
   const credentials = await youtubeDiscoveryCredentials();
   if (!credentials.length) {
     console.log("AUTO DISCOVERY: credential YouTube discovery belum ada, fallback ke yt-dlp search.");
@@ -751,6 +770,13 @@ async function discoverWithDailyYoutubeApiSearch({ queries, knownIds, options, t
     });
   }
 
+  const cooldown = await youtubeQuotaCooldown("data_api");
+  if (cooldown.active) {
+    console.log(`AUTO DISCOVERY: daily YouTube API search dilewati sampai quota reset: ${cooldown.until}`);
+    youtubeApiQuotaExhausted = true;
+    return null;
+  }
+
   const credentials = await youtubeDiscoveryCredentials();
   if (!credentials.length) {
     console.log("AUTO DISCOVERY: YOUTUBE_API_KEY belum ada, daily API search dilewati.");
@@ -793,6 +819,13 @@ async function discoverWithDailyYoutubeApiSearch({ queries, knownIds, options, t
 async function discoverTrendingWithYoutubeApi({ knownIds, options }) {
   if (youtubeApiQuotaExhausted) {
     console.log("AUTO DISCOVERY: YouTube API quota sudah habis, trending dilewati.");
+    return null;
+  }
+
+  const cooldown = await youtubeQuotaCooldown("data_api");
+  if (cooldown.active) {
+    console.log(`AUTO DISCOVERY: trending YouTube API dilewati sampai quota reset: ${cooldown.until}`);
+    youtubeApiQuotaExhausted = true;
     return null;
   }
 

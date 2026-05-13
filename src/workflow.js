@@ -18,6 +18,7 @@ import { publishToTikTok } from "./tiktok.js";
 import { publishToThreads } from "./threads.js";
 import { todayDate } from "./job-id.js";
 import { downloadStateFromRemote, uploadStateToRemote } from "./state-sync.js";
+import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 import { assertPreflightOk, printPreflightReport, runPreflight } from "./preflight.js";
 import { discoverAndQueueVideos } from "./video-discovery.js";
 import { applyVideoEffects } from "./video-effects.js";
@@ -593,8 +594,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       upload,
       thumbnail
     });
-    const youtubePrimary = config.youtube.enabled;
-    const primaryPublished = youtubePrimary ? Boolean(platformResults.youtube) : platformResults.hasAnySuccess;
+    const primaryPublished = platformResults.hasAnySuccess;
     const youtubeQuotaExceeded = Boolean(platformResults.quotaExceeded?.youtube);
     const deferredByQuota = youtubeQuotaExceeded && !primaryPublished;
     const publishStatus = primaryPublished
@@ -605,23 +605,23 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
     await updateJob(job.job_id, {
       status: primaryPublished ? "published" : deferredByQuota ? "queued" : "ready_to_publish",
       publish_status: publishStatus,
-      instagram_status: platformResults.instagram ? "published" : deferredByQuota ? "queued" : config.instagram.enabled ? "failed" : "disabled",
+      instagram_status: platformPublishStatus(platformResults, "instagram", config.instagram.enabled),
       instagram_media_id: platformResults.instagram?.mediaId || "",
       instagram_error: platformResults.errors.instagram || "",
-      facebook_status: platformResults.facebook ? "published" : deferredByQuota ? "queued" : config.facebook.enabled ? "failed" : "disabled",
+      facebook_status: platformPublishStatus(platformResults, "facebook", config.facebook.enabled),
       facebook_video_id: platformResults.facebook?.videoId || "",
       facebook_post_id: platformResults.facebook?.postId || "",
       facebook_url: platformResults.facebook?.url || "",
       facebook_error: platformResults.errors.facebook || "",
-      tiktok_status: platformResults.tiktok ? "submitted" : deferredByQuota ? "queued" : config.tiktok.enabled ? "failed" : "disabled",
+      tiktok_status: platformPublishStatus(platformResults, "tiktok", config.tiktok.enabled, "submitted"),
       tiktok_publish_id: platformResults.tiktok?.publishId || "",
       tiktok_mode: platformResults.tiktok?.mode || "",
       tiktok_error: platformResults.errors.tiktok || "",
-      threads_status: platformResults.threads ? "published" : deferredByQuota ? "queued" : config.threads.enabled ? "failed" : "disabled",
+      threads_status: platformPublishStatus(platformResults, "threads", config.threads.enabled),
       threads_media_id: platformResults.threads?.mediaId || "",
       threads_url: platformResults.threads?.url || "",
       threads_error: platformResults.errors.threads || "",
-      youtube_status: platformResults.youtube ? "published" : config.youtube.enabled ? youtubeQuotaExceeded ? "quota_exceeded" : "failed" : "disabled",
+      youtube_status: platformPublishStatus(platformResults, "youtube", config.youtube.enabled),
       youtube_video_id: platformResults.youtube?.videoId || "",
       youtube_url: platformResults.youtube?.url || "",
       youtube_error: platformResults.errors.youtube || "",
@@ -680,6 +680,9 @@ function buildClipStorageJob(job, index, total) {
 }
 
 function summarizeClipResult(result) {
+  const platformResults = result.platformResults || null;
+  const errors = platformResults?.errors || {};
+
   return {
     ok: Boolean(result.ok),
     clip_index: result.clipIndex,
@@ -688,11 +691,16 @@ function summarizeClipResult(result) {
     error: result.error || "",
     public_video_url: result.upload?.videoUrl || "",
     public_thumbnail_url: result.upload?.thumbnailUrl || "",
+    youtube_status: platformResults ? platformPublishStatus(platformResults, "youtube", config.youtube.enabled) : "",
     youtube_video_id: result.platformResults?.youtube?.videoId || "",
     youtube_url: result.platformResults?.youtube?.url || "",
+    instagram_status: platformResults ? platformPublishStatus(platformResults, "instagram", config.instagram.enabled) : "",
     instagram_media_id: result.platformResults?.instagram?.mediaId || "",
+    facebook_status: platformResults ? platformPublishStatus(platformResults, "facebook", config.facebook.enabled) : "",
     facebook_video_id: result.platformResults?.facebook?.videoId || "",
+    tiktok_status: platformResults ? platformPublishStatus(platformResults, "tiktok", config.tiktok.enabled, "submitted") : "",
     tiktok_publish_id: result.platformResults?.tiktok?.publishId || "",
+    threads_status: platformResults ? platformPublishStatus(platformResults, "threads", config.threads.enabled) : "",
     threads_media_id: result.platformResults?.threads?.mediaId || "",
     final_video_path: result.output?.finalAbsPath || "",
     original_final_video_path: result.output?.originalFinalAbsPath || "",
@@ -701,7 +709,11 @@ function summarizeClipResult(result) {
     thumbnail_intro: result.output?.thumbnailIntro || { applied: false },
     frame_quote_text: result.output?.frameQuoteText || "",
     caption: result.caption || "",
-    youtube_error: result.platformResults?.errors?.youtube || ""
+    youtube_error: errors.youtube || "",
+    instagram_error: errors.instagram || "",
+    facebook_error: errors.facebook || "",
+    tiktok_error: errors.tiktok || "",
+    threads_error: errors.threads || ""
   };
 }
 
@@ -726,16 +738,16 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
     };
   }
 
-  if (publishedClips === total && !hasPlatformErrors) {
+  if (publishedClips === total) {
     return {
       status: "published",
-      publishStatus: "published",
+      publishStatus: hasPlatformErrors ? "published_with_warnings" : "published",
       videoStatus: "published",
-      event: "published",
+      event: hasPlatformErrors ? "published_with_warnings" : "published",
       successfulClips,
       failedClips,
       publishedClips,
-      errorMessage: ""
+      errorMessage: hasPlatformErrors ? "Semua clip berhasil publish, tapi ada platform yang gagal atau tertunda." : ""
     };
   }
 
@@ -798,17 +810,47 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
   };
 
   if (config.youtube.enabled) {
-    platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
-      await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
-      const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
-      return publishToYoutube({
-        videoPath: output.finalAbsPath,
-        thumbnailPath: thumbnail?.path || "",
-        ...youtubeMetadata
+    const cooldown = await youtubeQuotaCooldown("upload");
+    if (cooldown.active) {
+      platformResults.hasErrors = true;
+      platformResults.quotaExceeded.youtube = true;
+      platformResults.errors.youtube = `YouTube quota cooldown aktif sampai ${cooldown.until}.`;
+      await updateJob(job.job_id, {
+        youtube_status: "quota_exceeded",
+        youtube_error: platformResults.errors.youtube
       });
-    });
+      await appendLog("youtube_quota_cooldown_skip", {
+        job_id: job.job_id,
+        until: cooldown.until,
+        reason: cooldown.reason || ""
+      });
+      console.warn(`YouTube upload dilewati sampai reset quota: ${cooldown.until}`);
+    } else {
+      platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
+        await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
+        const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
+        return publishToYoutube({
+          videoPath: output.finalAbsPath,
+          thumbnailPath: thumbnail?.path || "",
+          ...youtubeMetadata
+        });
+      });
+      if (platformResults.quotaExceeded.youtube) {
+        const quotaState = await markYoutubeQuotaExceeded("upload", platformResults.errors.youtube);
+        if (quotaState.until) {
+          console.warn(`YouTube quota cooldown disimpan sampai ${quotaState.until}.`);
+        }
+      } else if (platformResults.youtube) {
+        await clearYoutubeQuotaExceeded("upload");
+      }
+    }
+
     if (platformResults.quotaExceeded.youtube) {
-      return platformResults;
+      await appendLog("youtube_quota_continue_social_publish", {
+        job_id: job.job_id,
+        error: platformResults.errors.youtube || ""
+      });
+      console.warn("Quota YouTube habis; platform sosmed lain tetap dicoba.");
     }
   }
 
@@ -867,6 +909,14 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
   }
 
   return platformResults;
+}
+
+function platformPublishStatus(platformResults, name, enabled, successStatus = "published") {
+  if (platformResults?.[name]) return successStatus;
+  if (!enabled) return "disabled";
+  if (name === "youtube" && platformResults?.quotaExceeded?.youtube) return "quota_exceeded";
+  if (platformResults?.errors?.[name]) return "failed";
+  return "skipped";
 }
 
 async function publishPlatform(name, platformResults, jobId, callback) {
