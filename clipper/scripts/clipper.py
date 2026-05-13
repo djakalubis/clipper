@@ -1869,23 +1869,28 @@ def highlighted_caption_events_for_cue(text, cue_start, cue_end, config):
             events.append((chunk_start, chunk_end, format_ass_caption(lines, config)))
             continue
 
+        if not style["highlight_enabled"]:
+            events.append((chunk_start, chunk_end, format_ass_caption(lines, config)))
+
         for word_index, word in enumerate(words):
             word_start = chunk_start + (word_slot * word_index)
             word_end = chunk_end if word_index == len(words) - 1 else chunk_start + (word_slot * (word_index + 1))
             if word_end <= word_start:
                 continue
 
-            events.append(
-                {
-                    "layer": 1,
-                    "start": word_start,
-                    "end": word_end,
-                    "style": "Caption",
-                    "text": format_highlighted_ass_caption(lines, word_index, config),
-                }
-            )
+            if style["highlight_enabled"]:
+                events.append(
+                    {
+                        "layer": 1,
+                        "start": word_start,
+                        "end": word_end,
+                        "style": "Caption",
+                        "text": format_highlighted_ass_caption(lines, word_index, config),
+                    }
+                )
 
             if style["emoji_enabled"] and should_show_subtitle_emoji(word, word_index):
+                emoji = subtitle_emoji_for_word(word)
                 emoji_end = min(chunk_end, word_start + min(0.65, max(0.34, word_end - word_start)))
                 if emoji_end > word_start + 0.12:
                     events.append(
@@ -1894,6 +1899,7 @@ def highlighted_caption_events_for_cue(text, cue_start, cue_end, config):
                             "start": word_start,
                             "end": emoji_end,
                             "style": "Emoji",
+                            "emoji": emoji,
                             "text": emoji_popup_text(word),
                         }
                     )
@@ -1966,9 +1972,60 @@ def create_ass(segments, clip, index, config, job_id):
             cue_end = min(duration, cue_start + 1.0)
             events.extend(caption_events_for_cue(text, cue_start, cue_end, config))
 
-    ass = build_ass(events, config)
+    write_emoji_popup_schedule(events, ass_path, config)
+    ass = build_ass([event for event in events if not is_emoji_event(event)], config)
     ass_path.write_text(ass, encoding="utf-8-sig")
     return ass_path
+
+
+def is_emoji_event(event):
+    return isinstance(event, dict) and str(event.get("style", "")).lower() == "emoji"
+
+
+def emoji_popup_schedule_path(ass_path):
+    ass_path = Path(ass_path)
+    return ass_path.with_name(f"{ass_path.stem}-emoji.json")
+
+
+def write_emoji_popup_schedule(events, ass_path, config):
+    schedule_path = emoji_popup_schedule_path(ass_path)
+    style = subtitle_style_config(config)
+    if not style["emoji_enabled"]:
+        try:
+            schedule_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return schedule_path
+
+    min_gap = max(0.0, parse_float(os.environ.get("SUBTITLE_EMOJI_MIN_GAP_SECONDS"), 0.55))
+    max_events = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_MAX_EVENTS"), 36), 0, 120)
+    items = []
+    last_start = -999.0
+
+    for event in sorted((item for item in events if is_emoji_event(item)), key=lambda item: float(item.get("start", 0.0))):
+        start = max(0.0, float(event.get("start", 0.0)))
+        end = max(start, float(event.get("end", start)))
+        emoji = str(event.get("emoji") or "").strip()
+        if not emoji or end <= start + 0.08:
+            continue
+        if items and start - last_start < min_gap:
+            continue
+
+        items.append({
+            "start": round(start, 3),
+            "end": round(end, 3),
+            "emoji": emoji,
+            "key": emoji_asset_key(emoji),
+        })
+        last_start = start
+        if max_events and len(items) >= max_events:
+            break
+
+    schedule_path.write_text(json.dumps({
+        "version": 1,
+        "items": items,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    return schedule_path
 
 
 def caption_for_window(segments, window_start, window_end):
@@ -2051,6 +2108,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     lines = [header]
     for event in events:
+        if is_emoji_event(event):
+            continue
+
         if isinstance(event, dict):
             start = float(event.get("start", 0.0))
             end = float(event.get("end", start))
@@ -2069,6 +2129,237 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         )
 
     return "".join(lines)
+
+
+def emoji_asset_key(emoji):
+    value = str(emoji or "").strip()
+    mapping = {
+        "\u26A0\uFE0F": "warning",
+        "\u26A0": "warning",
+        "\U0001F631": "scream",
+        "\U0001F440": "eyes",
+        "\u2757": "exclamation",
+        "\U0001F525": "fire",
+        "\U0001F680": "rocket",
+        "\u2728": "sparkles",
+    }
+    return mapping.get(value, "sparkles")
+
+
+def ensure_emoji_popup_assets():
+    asset_dir = ROOT.parent / "assets" / "emoji-popups"
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    generators = {
+        "sparkles": draw_popup_sparkles,
+        "fire": draw_popup_fire,
+        "rocket": draw_popup_rocket,
+        "eyes": draw_popup_eyes,
+        "warning": draw_popup_warning,
+        "exclamation": draw_popup_exclamation,
+        "scream": draw_popup_scream,
+    }
+    assets = {}
+    for key, generator in generators.items():
+        path = asset_dir / f"{key}.png"
+        if not path.exists() or path.stat().st_size <= 0:
+            generator(path)
+        assets[key] = path
+    return assets
+
+
+def popup_canvas(size=256, scale=4):
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGBA", (size * scale, size * scale), (0, 0, 0, 0))
+    return image, ImageDraw.Draw(image), scale
+
+
+def save_popup_canvas(image, path):
+    from PIL import Image
+
+    resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
+    image = image.resize((256, 256), resample)
+    image.save(path)
+
+
+def scaled_points(points, scale):
+    return [(int(x * scale), int(y * scale)) for x, y in points]
+
+
+def draw_popup_sparkles(path):
+    image, draw, scale = popup_canvas()
+
+    def diamond(cx, cy, r, fill, outline=None):
+        points = [(cx, cy - r), (cx + r * 0.42, cy - r * 0.42), (cx + r, cy), (cx + r * 0.42, cy + r * 0.42), (cx, cy + r), (cx - r * 0.42, cy + r * 0.42), (cx - r, cy), (cx - r * 0.42, cy - r * 0.42)]
+        draw.polygon(scaled_points(points, scale), fill=fill, outline=outline)
+
+    diamond(132, 124, 74, (255, 216, 52, 255), (176, 117, 0, 255))
+    diamond(62, 67, 30, (255, 246, 135, 255), (176, 117, 0, 220))
+    diamond(198, 70, 24, (255, 246, 135, 255), (176, 117, 0, 220))
+    diamond(195, 186, 32, (255, 246, 135, 255), (176, 117, 0, 220))
+    save_popup_canvas(image, path)
+
+
+def draw_popup_fire(path):
+    image, draw, scale = popup_canvas()
+    outer = [(128, 236), (72, 203), (61, 151), (91, 106), (103, 59), (130, 94), (153, 20), (176, 79), (198, 113), (202, 166), (181, 210)]
+    middle = [(130, 230), (94, 197), (94, 156), (119, 118), (130, 79), (151, 122), (174, 151), (170, 195)]
+    inner = [(130, 226), (113, 199), (116, 166), (136, 139), (151, 167), (151, 202)]
+    draw.polygon(scaled_points(outer, scale), fill=(239, 54, 42, 255))
+    draw.polygon(scaled_points(middle, scale), fill=(255, 139, 22, 255))
+    draw.polygon(scaled_points(inner, scale), fill=(255, 224, 74, 255))
+    save_popup_canvas(image, path)
+
+
+def draw_popup_rocket(path):
+    from PIL import Image, ImageDraw
+
+    image, draw, scale = popup_canvas()
+    rocket = Image.new("RGBA", (256 * scale, 256 * scale), (0, 0, 0, 0))
+    rd = ImageDraw.Draw(rocket)
+    s = scale
+    rd.ellipse((91 * s, 35 * s, 165 * s, 178 * s), fill=(238, 245, 255, 255), outline=(60, 86, 120, 255), width=4 * s)
+    rd.polygon(scaled_points([(128, 18), (98, 64), (158, 64)], s), fill=(238, 56, 60, 255))
+    rd.ellipse((112 * s, 80 * s, 144 * s, 112 * s), fill=(70, 185, 228, 255), outline=(35, 92, 128, 255), width=3 * s)
+    rd.polygon(scaled_points([(93, 146), (54, 196), (100, 184)], s), fill=(58, 118, 208, 255))
+    rd.polygon(scaled_points([(163, 146), (202, 196), (156, 184)], s), fill=(58, 118, 208, 255))
+    rd.polygon(scaled_points([(111, 176), (128, 238), (145, 176)], s), fill=(255, 133, 25, 255))
+    rd.polygon(scaled_points([(119, 181), (128, 224), (137, 181)], s), fill=(255, 224, 74, 255))
+    rocket = rocket.rotate(-28, resample=getattr(getattr(Image, "Resampling", Image), "BICUBIC", Image.BICUBIC), expand=False)
+    image.alpha_composite(rocket)
+    save_popup_canvas(image, path)
+
+
+def draw_popup_eyes(path):
+    image, draw, scale = popup_canvas()
+    for left, top, right, bottom, px in [(36, 62, 122, 178, 85), (134, 62, 220, 178, 171)]:
+        box = tuple(int(v * scale) for v in (left, top, right, bottom))
+        draw.ellipse(box, fill=(255, 255, 255, 255), outline=(38, 45, 55, 255), width=5 * scale)
+        draw.ellipse(tuple(int(v * scale) for v in (px - 18, 105, px + 18, 147)), fill=(46, 70, 96, 255))
+        draw.ellipse(tuple(int(v * scale) for v in (px - 6, 112, px + 6, 124)), fill=(255, 255, 255, 230))
+    save_popup_canvas(image, path)
+
+
+def draw_popup_warning(path):
+    image, draw, scale = popup_canvas()
+    tri = [(128, 26), (234, 218), (22, 218)]
+    draw.polygon(scaled_points(tri, scale), fill=(255, 205, 45, 255), outline=(58, 45, 20, 255))
+    draw.line(scaled_points([(128, 83), (128, 154)], scale), fill=(58, 45, 20, 255), width=18 * scale)
+    draw.ellipse(tuple(int(v * scale) for v in (118, 177, 138, 197)), fill=(58, 45, 20, 255))
+    save_popup_canvas(image, path)
+
+
+def draw_popup_exclamation(path):
+    image, draw, scale = popup_canvas()
+    draw.ellipse(tuple(int(v * scale) for v in (30, 30, 226, 226)), fill=(238, 55, 66, 255), outline=(128, 24, 36, 255), width=5 * scale)
+    draw.rounded_rectangle(tuple(int(v * scale) for v in (113, 64, 143, 153)), radius=13 * scale, fill=(255, 255, 255, 255))
+    draw.ellipse(tuple(int(v * scale) for v in (111, 174, 145, 208)), fill=(255, 255, 255, 255))
+    save_popup_canvas(image, path)
+
+
+def draw_popup_scream(path):
+    image, draw, scale = popup_canvas()
+    draw.ellipse(tuple(int(v * scale) for v in (31, 31, 225, 225)), fill=(255, 214, 74, 255), outline=(172, 113, 16, 255), width=5 * scale)
+    draw.ellipse(tuple(int(v * scale) for v in (74, 86, 105, 121)), fill=(42, 45, 54, 255))
+    draw.ellipse(tuple(int(v * scale) for v in (151, 86, 182, 121)), fill=(42, 45, 54, 255))
+    draw.ellipse(tuple(int(v * scale) for v in (100, 137, 156, 205)), fill=(64, 39, 56, 255))
+    draw.arc(tuple(int(v * scale) for v in (62, 54, 194, 178)), 25, 155, fill=(126, 81, 10, 255), width=5 * scale)
+    save_popup_canvas(image, path)
+
+
+def apply_emoji_popups(video_path, ass_path, config, job_id, index):
+    video_path = Path(video_path)
+    if not video_path.is_absolute():
+        parent_candidate = ROOT.parent / video_path
+        root_candidate = ROOT / video_path
+        video_path = parent_candidate if parent_candidate.exists() else root_candidate
+
+    schedule_path = emoji_popup_schedule_path(ass_path)
+    if not schedule_path.exists():
+        return None
+
+    try:
+        schedule = json.loads(schedule_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        log_warn(f"Jadwal emoji popup gagal dibaca: {exc}")
+        return None
+
+    items = [item for item in schedule.get("items", []) if float(item.get("end", 0.0)) > float(item.get("start", 0.0))]
+    if not items:
+        return None
+
+    assets = ensure_emoji_popup_assets()
+    style = subtitle_style_config(config)
+    size = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_IMAGE_SIZE"), max(132, int(style["emoji_font_size"] * 1.65))), 72, 260)
+    margin_v = int(style["emoji_margin_v"])
+    y = max(0, int(style["height"]) - margin_v - size)
+    x_expr = "(W-w)/2"
+    y_expr = str(y)
+
+    output = ROOT / "temp" / f"{job_id}-clip-{index + 1:02d}-emoji.mp4"
+    cmd = ["ffmpeg", "-y", "-fflags", "+genpts", "-i", str(video_path)]
+    input_count = 0
+    for item in items:
+        asset = assets.get(str(item.get("key") or "sparkles"), assets["sparkles"])
+        cmd.extend(["-loop", "1", "-framerate", "30", "-i", str(asset)])
+        input_count += 1
+
+    filters = ["[0:v]setpts=PTS-STARTPTS,fps=30[ev0]"]
+    previous = "ev0"
+    for idx, item in enumerate(items, start=1):
+        start = max(0.0, float(item.get("start", 0.0)))
+        end = max(start + 0.08, float(item.get("end", start + 0.35)))
+        overlay_input = f"ei{idx}"
+        output_label = f"ev{idx}"
+        filters.append(f"[{idx}:v]format=rgba,scale={size}:{size}[{overlay_input}]")
+        filters.append(
+            f"[{previous}][{overlay_input}]overlay=x={x_expr}:y={y_expr}:enable='between(t,{start:.3f},{end:.3f})':eof_action=pass[{output_label}]"
+        )
+        previous = output_label
+
+    cmd.extend([
+        "-filter_complex",
+        ";".join(filters),
+        "-map",
+        f"[{previous}]",
+        "-map",
+        "0:a?",
+        "-map_metadata",
+        "-1",
+        "-r",
+        "30",
+        "-c:v",
+        "libx264",
+        "-profile:v",
+        "high",
+        "-level:v",
+        "4.1",
+        "-preset",
+        "veryfast",
+        "-crf",
+        str(config["final_crf"]),
+        "-pix_fmt",
+        "yuv420p",
+        "-g",
+        "60",
+        "-bf",
+        "0",
+        "-c:a",
+        "copy",
+        "-shortest",
+        "-movflags",
+        "+faststart",
+        str(output),
+    ])
+
+    log_info(f"Overlay emoji popup: {len(items)} event, size={size}px")
+    run(cmd)
+    try:
+        output.replace(video_path)
+    except OSError:
+        run(["ffmpeg", "-y", "-i", str(output), "-c", "copy", str(video_path)])
+        output.unlink(missing_ok=True)
+    return schedule_path
 
 
 def download_clip_source(url, job_id, clip, index, config):
@@ -3550,6 +3841,7 @@ def render_clip(source_clip, ass_path, clip, index, config, job_id, *, progress_
                 confidence_rise_alpha=float(config.get("dynamic_zoom_confidence_rise", 0.24)),
                 transition_lead_seconds=float(config.get("dynamic_zoom_transition_lead", 0.25)),
             )
+            apply_emoji_popups(final_clip, ass_path, config, job_id, index)
             music_info = apply_background_music(final_clip, config, job_id, index, clip)
             log_progress(
                 "render",
@@ -3573,6 +3865,7 @@ def render_clip(source_clip, ass_path, clip, index, config, job_id, *, progress_
             note="ffmpeg",
         )
         run_render(source_clip, final_clip, subtitle_vf, config)
+        apply_emoji_popups(final_clip, ass_path, config, job_id, index)
         music_info = apply_background_music(final_clip, config, job_id, index, clip)
         log_progress(
             "render",
@@ -3586,10 +3879,12 @@ def render_clip(source_clip, ass_path, clip, index, config, job_id, *, progress_
         log_warn(f"Render smart/subtitle gagal, coba crop tengah dengan subtitle: {exc}")
         try:
             run_render(source_clip, final_clip, f"{centered_vf},subtitles='{subtitle_path}'", config)
+            apply_emoji_popups(final_clip, ass_path, config, job_id, index)
             music_info = apply_background_music(final_clip, config, job_id, index, clip)
         except subprocess.CalledProcessError as fallback_exc:
             log_warn(f"Render subtitle gagal, fallback tanpa hardsub: {fallback_exc}")
             run_render(source_clip, final_clip, centered_vf, config)
+            apply_emoji_popups(final_clip, ass_path, config, job_id, index)
             music_info = apply_background_music(final_clip, config, job_id, index, clip)
 
     log_progress(
