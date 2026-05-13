@@ -50,7 +50,7 @@ on:
       clip_count:
         description: How many clips to render from the source video
         required: false
-        default: "2"
+        default: "1"
       use_frame:
         description: "Apply Emsa frame: true/false"
         required: false
@@ -265,6 +265,8 @@ jobs:
 
       PYTHON_CMD: python
       CLIPPER_ROOT: clipper
+      CLIPPER_TIMEOUT_SECONDS: ${{ secrets.CLIPPER_TIMEOUT_SECONDS || '2700' }}
+      CLIPPER_IDLE_TIMEOUT_SECONDS: ${{ secrets.CLIPPER_IDLE_TIMEOUT_SECONDS || '1200' }}
       MIN_CLIP_SECONDS: "40"
       MAX_CLIP_SECONDS: "60"
       OUTPUT_WIDTH: "1080"
@@ -994,6 +996,7 @@ jobs:
         run: npm run check -- --offline
 
       - name: Generate and publish
+        timeout-minutes: 45
         env:
           EVENT_NAME: ${{ github.event_name }}
           THEME: ${{ github.event.inputs.theme || 'auto' }}

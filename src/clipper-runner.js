@@ -9,6 +9,31 @@ function boolInput(value, fallback = false) {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
+function secondsInput(name, fallback, min, max) {
+  const value = Number(process.env[name]);
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.min(Math.max(value, min), max);
+}
+
+function minutesLabel(ms) {
+  return `${Math.round(ms / 60000)} menit`;
+}
+
+function stopProcessTree(child) {
+  if (!child.pid) return;
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true })
+      .on("error", () => {});
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    child.kill("SIGTERM");
+  }
+}
+
 export async function runClipper({ video, job, onLog = () => {} }) {
   const clipperRoot = config.clipper.rootDir;
   const scriptPath = path.join(clipperRoot, "scripts", "clipper.py");
@@ -51,33 +76,86 @@ export async function runClipper({ video, job, onLog = () => {} }) {
     BACKGROUND_MUSIC_ENABLED: boolInput(video.use_music ?? job.use_music, boolInput(process.env.BACKGROUND_MUSIC_ENABLED, true)) ? "1" : "0"
   };
 
+  const hardTimeoutMs = secondsInput("CLIPPER_TIMEOUT_SECONDS", 2700, 300, 7200) * 1000;
+  const idleTimeoutMs = secondsInput("CLIPPER_IDLE_TIMEOUT_SECONDS", 1200, 300, 3600) * 1000;
+
   onLog(`Running clipper: ${config.clipper.pythonCommand} ${args.join(" ")}`);
+  onLog(`Clipper watchdog: hard ${minutesLabel(hardTimeoutMs)}, idle ${minutesLabel(idleTimeoutMs)}`);
 
   const output = await new Promise((resolve, reject) => {
     const child = spawn(config.clipper.pythonCommand, args, {
       cwd: clipperRoot,
       env,
+      detached: process.platform !== "win32",
       windowsHide: true
     });
     let stdout = "";
     let stderr = "";
+    let settled = false;
+    let killTimer = null;
+
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimer);
+      clearTimeout(idleTimer);
+      callback(value);
+    };
+
+    const abort = (message) => {
+      if (settled) return;
+      onLog(message);
+      stopProcessTree(child);
+      killTimer = setTimeout(() => {
+        if (!child.killed && child.pid) {
+          try {
+            if (process.platform !== "win32") process.kill(-child.pid, "SIGKILL");
+            else child.kill("SIGKILL");
+          } catch {
+            child.kill("SIGKILL");
+          }
+        }
+      }, 5000);
+      killTimer.unref?.();
+      finish(reject, new Error(message));
+    };
+
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        abort(`Clipper idle timeout setelah ${minutesLabel(idleTimeoutMs)} tanpa log baru.`);
+      }, idleTimeoutMs);
+    };
+
+    const hardTimer = setTimeout(() => {
+      abort(`Clipper timeout setelah ${minutesLabel(hardTimeoutMs)}.`);
+    }, hardTimeoutMs);
+    let idleTimer = setTimeout(() => {
+      abort(`Clipper idle timeout setelah ${minutesLabel(idleTimeoutMs)} tanpa log baru.`);
+    }, idleTimeoutMs);
 
     child.stdout.on("data", (chunk) => {
       const text = chunk.toString("utf8");
       stdout += text;
       onLog(text.trim());
+      resetIdleTimer();
     });
 
     child.stderr.on("data", (chunk) => {
       const text = chunk.toString("utf8");
       stderr += text;
       onLog(text.trim());
+      resetIdleTimer();
     });
 
-    child.on("error", reject);
+    child.on("error", (error) => {
+      finish(reject, error);
+    });
+
     child.on("close", (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`Clipper failed with exit code ${code}: ${stderr || stdout}`));
+      if (settled) return;
+      if (code === 0) finish(resolve, { stdout, stderr });
+      else finish(reject, new Error(`Clipper failed with exit code ${code}: ${stderr || stdout}`));
     });
   });
 
