@@ -1670,8 +1670,8 @@ def ass_override_colour(value, fallback="&H00FFFFFF"):
 def subtitle_style_config(config):
     width = parse_int(config.get("width"), 1080)
     height = parse_int(config.get("height"), 1920)
-    default_margin_h = max(160, int(width * 0.165))
-    min_margin_h = max(150, int(width * 0.15))
+    default_margin_h = max(80, int(width * 0.075))
+    min_margin_h = max(60, int(width * 0.055))
     max_margin_h = max(min_margin_h, int(width * 0.30))
 
     font_name = (os.environ.get("SUBTITLE_FONT_FAMILY") or "Segoe UI Semibold").strip() or "Segoe UI Semibold"
@@ -1820,17 +1820,27 @@ def subtitle_emoji_for_word(word):
         return "*"
 
     mapping = [
-        ({"bangkrut", "rugi", "gagal", "jatuh", "hancur", "ancur"}, "\u26A0\uFE0F"),
-        ({"takut", "kaget", "shock", "terkejut", "panik"}, "\U0001F631"),
-        ({"rahasia", "bongkar", "ternyata", "jujur", "asli"}, "\U0001F440"),
-        ({"salah", "keliru", "terlambat", "telat"}, "\u2757"),
-        ({"viral", "meledak", "ramai", "pecah"}, "\U0001F525"),
-        ({"sukses", "menang", "berhasil", "naik"}, "\U0001F680"),
+        ({"bangkrut", "rugi", "gagal", "jatuh", "hancur", "ancur", "bahaya", "ancaman", "terancam", "risiko", "krisis"}, "\u26A0\uFE0F"),
+        ({"takut", "kaget", "shock", "terkejut", "panik", "gila", "parah", "waduh", "astaga"}, "\U0001F631"),
+        ({"rahasia", "bongkar", "ternyata", "jujur", "asli", "lihat", "tahu", "tau", "fakta", "bukti", "spill"}, "\U0001F440"),
+        ({"salah", "keliru", "terlambat", "telat", "penting", "ingat", "kenapa", "kok", "jangan", "harus"}, "\u2757"),
+        ({"viral", "meledak", "ramai", "pecah", "panas", "heboh", "trending", "kontroversi", "drama"}, "\U0001F525"),
+        ({"sukses", "menang", "berhasil", "naik", "besar", "keren", "mantap", "hebat", "cuan", "miliar", "triliun"}, "\U0001F680"),
     ]
     for words, emoji in mapping:
-        if key in words:
+        if key in words or any(len(item) >= 4 and key.startswith(item) for item in words):
             return emoji
-    return SUBTITLE_EMOJI_DEFAULT
+
+    fallback = [
+        SUBTITLE_EMOJI_DEFAULT,
+        "\U0001F440",
+        "\U0001F525",
+        "\U0001F680",
+        "\u2757",
+        "\U0001F631",
+    ]
+    score = sum(ord(char) for char in key)
+    return fallback[score % len(fallback)]
 
 
 def should_show_subtitle_emoji(word, active_word_index):
