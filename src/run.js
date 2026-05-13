@@ -35,6 +35,7 @@ const options = {
   useFrame: optionalBoolArg("--use-frame"),
   useFilter: optionalBoolArg("--use-filter"),
   useWatermark: optionalBoolArg("--use-watermark"),
+  useSubtitleHighlight: optionalBoolArg("--subtitle-highlight"),
   forceReprocess: hasArg("--force-reprocess")
 };
 

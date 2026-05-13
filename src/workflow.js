@@ -185,6 +185,7 @@ async function createManualSelection(options) {
     use_filter: options.useFilter,
     use_watermark: options.useWatermark,
     use_music: options.useMusic,
+    use_subtitle_highlight: options.useSubtitleHighlight,
     force_reprocess: options.forceReprocess === true,
     notes: "Ditambahkan dari CLI/manual run"
   });
@@ -269,7 +270,12 @@ async function noVideoSelectedResult({ discoveryResult, failedSelections }) {
 }
 
 async function processSelectedWorkflow({ selection, options, scheduledDailyLimit, scheduledPostedToday, keepVideoQueued = false }) {
-  const { video, theme, prompt } = selection;
+  const runtimeVideo = options.useSubtitleHighlight === true
+    ? { ...selection.video, use_subtitle_highlight: true }
+    : selection.video;
+  const { theme, prompt } = selection;
+  const video = runtimeVideo;
+  selection = { ...selection, video };
   const job = await createJobRecord(selection, { keepVideoStatus: keepVideoQueued });
   const maybeUpdateVideoStatus = async (status, patch) => {
     if (keepVideoQueued) return;

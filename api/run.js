@@ -33,7 +33,8 @@ export default async function handler(req, res) {
       use_frame: boolInput(body.use_frame, boolEnv("VIDEO_FRAME_ENABLED", true)) ? "true" : "false",
       use_filter: boolInput(body.use_filter, boolEnv("VIDEO_FILTER_ENABLED", true)) ? "true" : "false",
       use_watermark: boolInput(body.use_watermark, boolEnv("VIDEO_WATERMARK_ENABLED", true)) ? "true" : "false",
-      background_music_enabled: boolInput(body.use_music, boolEnv("BACKGROUND_MUSIC_ENABLED", true)) ? "1" : "0"
+      background_music_enabled: boolInput(body.use_music, boolEnv("BACKGROUND_MUSIC_ENABLED", true)) ? "1" : "0",
+      subtitle_highlight_enabled: boolInput(body.use_subtitle_highlight, boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", false)) ? "true" : "false"
     };
 
     const dispatch = await dispatchWorkflow(inputs);

@@ -79,6 +79,10 @@ on:
         description: "Backsound volume, example 0.06"
         required: false
         default: "0.06"
+      subtitle_highlight_enabled:
+        description: "Subtitle word highlight + emoji popup: true/false"
+        required: false
+        default: "false"
       ai_provider:
         description: "AI teks dikunci ke OpenAI; input lama diabaikan"
         required: false
@@ -300,6 +304,10 @@ jobs:
       SUBTITLE_PRIMARY_COLOUR: ${{ secrets.SUBTITLE_PRIMARY_COLOUR || '&H0000FFFF' }}
       SUBTITLE_OUTLINE_COLOUR: ${{ secrets.SUBTITLE_OUTLINE_COLOUR || '&H00111111' }}
       SUBTITLE_SHADOW_COLOUR: ${{ secrets.SUBTITLE_SHADOW_COLOUR || '&H66000000' }}
+      SUBTITLE_WORD_HIGHLIGHT_ENABLED: ${{ github.event.inputs.subtitle_highlight_enabled || secrets.SUBTITLE_WORD_HIGHLIGHT_ENABLED || '0' }}
+      SUBTITLE_EMOJI_POPUP_ENABLED: ${{ github.event.inputs.subtitle_highlight_enabled || secrets.SUBTITLE_EMOJI_POPUP_ENABLED || '0' }}
+      SUBTITLE_HIGHLIGHT_BASE_COLOUR: ${{ secrets.SUBTITLE_HIGHLIGHT_BASE_COLOUR || '&H00FFFFFF' }}
+      SUBTITLE_HIGHLIGHT_COLOUR: ${{ secrets.SUBTITLE_HIGHLIGHT_COLOUR || '&H0000FFFF' }}
       SUBTITLE_OUTLINE: ${{ secrets.SUBTITLE_OUTLINE || '4' }}
       SUBTITLE_SHADOW: ${{ secrets.SUBTITLE_SHADOW || '1' }}
       SUBTITLE_BOLD: ${{ secrets.SUBTITLE_BOLD || '1' }}
@@ -933,6 +941,8 @@ jobs:
           echo "SUBTITLE_MARGIN_V=$SUBTITLE_MARGIN_V"
           echo "SUBTITLE_MARGIN_H=$SUBTITLE_MARGIN_H"
           echo "SUBTITLE_MAX_LINES=$SUBTITLE_MAX_LINES"
+          echo "SUBTITLE_WORD_HIGHLIGHT_ENABLED=$SUBTITLE_WORD_HIGHLIGHT_ENABLED"
+          echo "SUBTITLE_EMOJI_POPUP_ENABLED=$SUBTITLE_EMOJI_POPUP_ENABLED"
           echo "YTDLP_COOKIES_FILE=${YTDLP_COOKIES_FILE:-not_set}"
           echo "YTDLP_JS_RUNTIMES=$YTDLP_JS_RUNTIMES"
           echo "YTDLP_REMOTE_COMPONENTS=$YTDLP_REMOTE_COMPONENTS"
@@ -1021,6 +1031,7 @@ jobs:
           args+=(--subtitle-font-size "$SUBTITLE_FONT_SIZE")
           args+=(--subtitle-margin-v "$SUBTITLE_MARGIN_V")
           args+=(--subtitle-margin-h "$SUBTITLE_MARGIN_H")
+          args+=(--subtitle-highlight "$SUBTITLE_WORD_HIGHLIGHT_ENABLED")
 
           echo "Running command:"
           printf 'node src/run.js'

@@ -43,7 +43,8 @@ export default async function handler(req, res) {
         use_frame: video.use_frame ? "true" : "false",
         use_filter: video.use_filter ? "true" : "false",
         use_watermark: video.use_watermark ? "true" : "false",
-        background_music_enabled: video.use_music ? "1" : "0"
+        background_music_enabled: video.use_music ? "1" : "0",
+        subtitle_highlight_enabled: video.use_subtitle_highlight ? "true" : "false"
       });
     }
 

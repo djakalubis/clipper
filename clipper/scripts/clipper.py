@@ -125,6 +125,8 @@ def cfg():
         "background_music_original_volume": parse_float(os.environ.get("BACKGROUND_MUSIC_ORIGINAL_VOLUME"), 1.0),
         "theme": os.environ.get("THEME", ""),
         "subtitle_offset": parse_float(os.environ.get("SUBTITLE_OFFSET_SECONDS"), 0.0),
+        "subtitle_word_highlight_enabled": parse_int(os.environ.get("SUBTITLE_WORD_HIGHLIGHT_ENABLED"), 0),
+        "subtitle_emoji_popup_enabled": parse_int(os.environ.get("SUBTITLE_EMOJI_POPUP_ENABLED"), 0),
         "smart_crop": parse_int(os.environ.get("SMART_CROP_ENABLED"), 1),
         "smart_crop_mode": os.environ.get("SMART_CROP_MODE", "auto"),
         "smart_crop_sample": parse_float(os.environ.get("SMART_CROP_SAMPLE_SECONDS"), 0.35),
@@ -1655,6 +1657,16 @@ def ass_colour_env(name, default):
     return default
 
 
+def ass_override_colour(value, fallback="&H00FFFFFF"):
+    colour = str(value or fallback).strip().upper()
+    if not re.fullmatch(r"&H[0-9A-F]{6,8}", colour):
+        colour = fallback
+    hex_part = colour[2:]
+    if len(hex_part) == 8:
+        hex_part = hex_part[2:]
+    return f"&H{hex_part}&"
+
+
 def subtitle_style_config(config):
     width = parse_int(config.get("width"), 1080)
     height = parse_int(config.get("height"), 1920)
@@ -1669,6 +1681,7 @@ def subtitle_style_config(config):
     margin_h = clamp_int(parse_int(os.environ.get("SUBTITLE_MARGIN_H"), default_margin_h), min_margin_h, max_margin_h)
     margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_MARGIN_V"), 550), 550, max(550, int(height * 0.48)))
     max_lines = clamp_int(parse_int(os.environ.get("SUBTITLE_MAX_LINES"), 2), 1, 3)
+    emoji_margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_MARGIN_V"), margin_v + int(font_size * 1.9)), margin_v, max(margin_v, height - 120))
 
     return {
         "width": width,
@@ -1681,11 +1694,18 @@ def subtitle_style_config(config):
         "max_lines": max_lines,
         "safe_width": max(240, width - (margin_h * 2)),
         "primary_colour": ass_colour_env("SUBTITLE_PRIMARY_COLOUR", "&H0000FFFF"),
+        "highlight_base_colour": ass_colour_env("SUBTITLE_HIGHLIGHT_BASE_COLOUR", "&H00FFFFFF"),
+        "highlight_colour": ass_colour_env("SUBTITLE_HIGHLIGHT_COLOUR", "&H0000FFFF"),
         "outline_colour": ass_colour_env("SUBTITLE_OUTLINE_COLOUR", "&H00111111"),
         "shadow_colour": ass_colour_env("SUBTITLE_SHADOW_COLOUR", "&H66000000"),
         "outline": clamp_int(parse_int(os.environ.get("SUBTITLE_OUTLINE"), 4), 0, 12),
         "shadow": clamp_int(parse_int(os.environ.get("SUBTITLE_SHADOW"), 1), 0, 8),
         "bold": -1 if parse_int(os.environ.get("SUBTITLE_BOLD"), 1) else 0,
+        "highlight_enabled": int(config.get("subtitle_word_highlight_enabled", 0)) == 1,
+        "emoji_enabled": int(config.get("subtitle_emoji_popup_enabled", 0)) == 1,
+        "emoji_font_name": re.sub(r"[\r\n,]+", " ", os.environ.get("SUBTITLE_EMOJI_FONT_FAMILY", "Segoe UI Emoji")).strip() or "Segoe UI Emoji",
+        "emoji_font_size": clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_FONT_SIZE"), int(font_size * 1.25)), 34, 108),
+        "emoji_margin_v": emoji_margin_v,
     }
 
 
@@ -1761,7 +1781,127 @@ def format_ass_caption(lines, config):
     return text
 
 
+def format_highlighted_ass_caption(lines, active_word_index, config):
+    style = subtitle_style_config(config)
+    font_size = fitted_caption_font_size(lines, config)
+    default_font_size = style["font_size"]
+    base_colour = ass_override_colour(style["highlight_base_colour"])
+    highlight_colour = ass_override_colour(style["highlight_colour"])
+    outline = style["outline"]
+
+    flat_index = 0
+    formatted_lines = []
+    for line in lines:
+        pieces = []
+        for word in str(line or "").split():
+            text = ass_escape(word)
+            if flat_index == active_word_index:
+                pieces.append(f"{{\\1c{highlight_colour}\\bord{outline + 1}}}{text}{{\\1c{base_colour}\\bord{outline}}}")
+            else:
+                pieces.append(text)
+            flat_index += 1
+        formatted_lines.append(" ".join(pieces))
+
+    prefix = f"{{\\1c{base_colour}}}"
+    if font_size < default_font_size:
+        prefix = f"{{\\1c{base_colour}\\fs{font_size}}}"
+    return prefix + "\\N".join(formatted_lines)
+
+
+def subtitle_emoji_for_word(word):
+    key = normalize_text(word)
+    if not key:
+        return "*"
+
+    mapping = [
+        ({"bangkrut", "rugi", "gagal", "jatuh", "hancur", "ancur"}, "⚠️"),
+        ({"takut", "kaget", "shock", "terkejut", "panik"}, "😱"),
+        ({"rahasia", "bongkar", "ternyata", "jujur", "asli"}, "👀"),
+        ({"salah", "keliru", "terlambat", "telat"}, "❗"),
+        ({"viral", "meledak", "ramai", "pecah"}, "🔥"),
+        ({"sukses", "menang", "berhasil", "naik"}, "🚀"),
+    ]
+    for words, emoji in mapping:
+        if key in words:
+            return emoji
+    return "✨"
+
+
+def should_show_subtitle_emoji(word, active_word_index):
+    return active_word_index == 0 or subtitle_emoji_for_word(word) != "✨"
+
+
+def emoji_popup_text(word):
+    emoji = subtitle_emoji_for_word(word)
+    return f"{{\\fad(40,160)\\fscx70\\fscy70\\t(0,150,\\fscx122\\fscy122)\\t(150,430,\\fscx100\\fscy100)}}{emoji}"
+
+
+def highlighted_caption_events_for_cue(text, cue_start, cue_end, config):
+    chunks = wrap_caption_chunks(text, config)
+    if not chunks:
+        return []
+
+    duration = max(0.0, cue_end - cue_start)
+    max_chunks = max(1, int(duration / 0.8))
+    chunks = chunks[:max_chunks]
+    chunk_duration = duration / max(1, len(chunks))
+    style = subtitle_style_config(config)
+    events = []
+
+    for chunk_index, lines in enumerate(chunks):
+        chunk_start = cue_start + (chunk_duration * chunk_index)
+        chunk_end = cue_end if chunk_index == len(chunks) - 1 else cue_start + (chunk_duration * (chunk_index + 1))
+        if chunk_end <= chunk_start:
+            continue
+
+        words = " ".join(lines).split()
+        if not words:
+            continue
+
+        word_slot = (chunk_end - chunk_start) / max(1, len(words))
+        if word_slot < 0.16:
+            events.append((chunk_start, chunk_end, format_ass_caption(lines, config)))
+            continue
+
+        for word_index, word in enumerate(words):
+            word_start = chunk_start + (word_slot * word_index)
+            word_end = chunk_end if word_index == len(words) - 1 else chunk_start + (word_slot * (word_index + 1))
+            if word_end <= word_start:
+                continue
+
+            events.append(
+                {
+                    "layer": 1,
+                    "start": word_start,
+                    "end": word_end,
+                    "style": "Caption",
+                    "text": format_highlighted_ass_caption(lines, word_index, config),
+                }
+            )
+
+            if style["emoji_enabled"] and should_show_subtitle_emoji(word, word_index):
+                emoji_end = min(chunk_end, word_start + min(0.65, max(0.34, word_end - word_start)))
+                if emoji_end > word_start + 0.12:
+                    events.append(
+                        {
+                            "layer": 2,
+                            "start": word_start,
+                            "end": emoji_end,
+                            "style": "Emoji",
+                            "text": emoji_popup_text(word),
+                        }
+                    )
+
+    return events
+
+
 def caption_events_for_cue(text, cue_start, cue_end, config):
+    style = subtitle_style_config(config)
+    if style["highlight_enabled"]:
+        events = highlighted_caption_events_for_cue(text, cue_start, cue_end, config)
+        if events:
+            return events
+
     chunks = wrap_caption_chunks(text, config)
     if not chunks:
         return []
@@ -1878,6 +2018,9 @@ def build_ass(events, config):
     margin_v = style["margin_v"]
     margin_h = style["margin_h"]
     primary_colour = style["primary_colour"]
+    emoji_font_name = style["emoji_font_name"]
+    emoji_font_size = style["emoji_font_size"]
+    emoji_margin_v = style["emoji_margin_v"]
     outline_colour = style["outline_colour"]
     shadow_colour = style["shadow_colour"]
     bold = style["bold"]
@@ -1894,15 +2037,29 @@ WrapStyle: 0
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Caption,{font_name},{font_size},{primary_colour},{primary_colour},{outline_colour},{shadow_colour},{bold},0,0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{margin_v},1
+Style: Emoji,{emoji_font_name},{emoji_font_size},&H00FFFFFF,&H00FFFFFF,{outline_colour},{shadow_colour},-1,0,0,0,100,100,0,0,1,{outline},{shadow},2,{margin_h},{margin_h},{emoji_margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
     lines = [header]
-    for start, end, text in events:
+    for event in events:
+        if isinstance(event, dict):
+            start = float(event.get("start", 0.0))
+            end = float(event.get("end", start))
+            text = str(event.get("text", ""))
+            style_name = str(event.get("style", "Caption") or "Caption")
+            layer = int(event.get("layer", 0) or 0)
+            event_margin_v = emoji_margin_v if style_name == "Emoji" else margin_v
+        else:
+            start, end, text = event
+            style_name = "Caption"
+            layer = 0
+            event_margin_v = margin_v
+
         lines.append(
-            f"Dialogue: 0,{seconds_to_ass(start)},{seconds_to_ass(end)},Caption,,{margin_h},{margin_h},{margin_v},,{text}\n"
+            f"Dialogue: {layer},{seconds_to_ass(start)},{seconds_to_ass(end)},{style_name},,{margin_h},{margin_h},{event_margin_v},,{text}\n"
         )
 
     return "".join(lines)

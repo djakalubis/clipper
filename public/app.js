@@ -30,7 +30,13 @@ let cachedVideos = [];
 let cachedJobs = [];
 let videoLimit = ROW_LIMIT_DEFAULT;
 let jobLimit = ROW_LIMIT_DEFAULT;
-let effectDefaults = { use_frame: true, use_filter: true, use_watermark: true, use_music: true };
+let effectDefaults = {
+  use_frame: true,
+  use_filter: true,
+  use_watermark: true,
+  use_music: true,
+  use_subtitle_highlight: false
+};
 let effectDefaultsApplied = false;
 
 if (dashboardPin) {
@@ -585,7 +591,8 @@ function applyEffectDefaults(cfg) {
     use_frame: Boolean(cfg.videoFrameEnabled),
     use_filter: Boolean(cfg.videoFilterEnabled),
     use_watermark: Boolean(cfg.videoWatermarkEnabled),
-    use_music: Boolean(cfg.backgroundMusicEnabled)
+    use_music: Boolean(cfg.backgroundMusicEnabled),
+    use_subtitle_highlight: Boolean(cfg.subtitleHighlightEnabled)
   };
   if (effectDefaultsApplied) return;
   for (const form of [els.runForm, els.videoForm]) {
@@ -602,7 +609,8 @@ function readEffectOptions(form) {
     use_frame: Boolean(form.elements.use_frame?.checked),
     use_filter: Boolean(form.elements.use_filter?.checked),
     use_watermark: Boolean(form.elements.use_watermark?.checked),
-    use_music: Boolean(form.elements.use_music?.checked)
+    use_music: Boolean(form.elements.use_music?.checked),
+    use_subtitle_highlight: Boolean(form.elements.use_subtitle_highlight?.checked)
   };
 }
 

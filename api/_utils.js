@@ -182,6 +182,7 @@ export function configSummary() {
     backgroundMusicVolume: clean(process.env.BACKGROUND_MUSIC_VOLUME || "0.06"),
     subtitleFont: clean(process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
     subtitleMarginV: clean(process.env.SUBTITLE_MARGIN_V || "550"),
+    subtitleHighlightEnabled: boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", false),
     vercelDashboard: true
   };
 }
@@ -302,6 +303,7 @@ export function buildVideo(input) {
     use_filter: boolInput(input.use_filter, boolEnv("VIDEO_FILTER_ENABLED", true)),
     use_watermark: boolInput(input.use_watermark, boolEnv("VIDEO_WATERMARK_ENABLED", true)),
     use_music: boolInput(input.use_music, boolEnv("BACKGROUND_MUSIC_ENABLED", true)),
+    use_subtitle_highlight: boolInput(input.use_subtitle_highlight, boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", false)),
     force_reprocess: input.force_reprocess === true,
     created_at: input.created_at || now,
     updated_at: now
