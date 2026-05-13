@@ -1703,7 +1703,7 @@ def subtitle_style_config(config):
         "bold": -1 if parse_int(os.environ.get("SUBTITLE_BOLD"), 1) else 0,
         "highlight_enabled": int(config.get("subtitle_word_highlight_enabled", 0)) == 1,
         "emoji_enabled": int(config.get("subtitle_emoji_popup_enabled", 0)) == 1,
-        "emoji_font_name": re.sub(r"[\r\n,]+", " ", os.environ.get("SUBTITLE_EMOJI_FONT_FAMILY", "Segoe UI Emoji")).strip() or "Segoe UI Emoji",
+        "emoji_font_name": re.sub(r"[\r\n,]+", " ", os.environ.get("SUBTITLE_EMOJI_FONT_FAMILY", "Noto Color Emoji")).strip() or "Noto Color Emoji",
         "emoji_font_size": clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_FONT_SIZE"), int(font_size * 1.25)), 34, 108),
         "emoji_margin_v": emoji_margin_v,
     }
@@ -1783,6 +1783,9 @@ def format_ass_caption(lines, config):
 
 def format_highlighted_ass_caption(lines, active_word_index, config):
     style = subtitle_style_config(config)
+    if not style["highlight_enabled"]:
+        return format_ass_caption(lines, config)
+
     font_size = fitted_caption_font_size(lines, config)
     default_font_size = style["font_size"]
     base_colour = ass_override_colour(style["highlight_base_colour"])
@@ -1808,27 +1811,30 @@ def format_highlighted_ass_caption(lines, active_word_index, config):
     return prefix + "\\N".join(formatted_lines)
 
 
+SUBTITLE_EMOJI_DEFAULT = "\u2728"
+
+
 def subtitle_emoji_for_word(word):
     key = normalize_text(word)
     if not key:
         return "*"
 
     mapping = [
-        ({"bangkrut", "rugi", "gagal", "jatuh", "hancur", "ancur"}, "⚠️"),
-        ({"takut", "kaget", "shock", "terkejut", "panik"}, "😱"),
-        ({"rahasia", "bongkar", "ternyata", "jujur", "asli"}, "👀"),
-        ({"salah", "keliru", "terlambat", "telat"}, "❗"),
-        ({"viral", "meledak", "ramai", "pecah"}, "🔥"),
-        ({"sukses", "menang", "berhasil", "naik"}, "🚀"),
+        ({"bangkrut", "rugi", "gagal", "jatuh", "hancur", "ancur"}, "\u26A0\uFE0F"),
+        ({"takut", "kaget", "shock", "terkejut", "panik"}, "\U0001F631"),
+        ({"rahasia", "bongkar", "ternyata", "jujur", "asli"}, "\U0001F440"),
+        ({"salah", "keliru", "terlambat", "telat"}, "\u2757"),
+        ({"viral", "meledak", "ramai", "pecah"}, "\U0001F525"),
+        ({"sukses", "menang", "berhasil", "naik"}, "\U0001F680"),
     ]
     for words, emoji in mapping:
         if key in words:
             return emoji
-    return "✨"
+    return SUBTITLE_EMOJI_DEFAULT
 
 
 def should_show_subtitle_emoji(word, active_word_index):
-    return active_word_index == 0 or subtitle_emoji_for_word(word) != "✨"
+    return active_word_index == 0 or subtitle_emoji_for_word(word) != SUBTITLE_EMOJI_DEFAULT
 
 
 def emoji_popup_text(word):
@@ -1897,7 +1903,7 @@ def highlighted_caption_events_for_cue(text, cue_start, cue_end, config):
 
 def caption_events_for_cue(text, cue_start, cue_end, config):
     style = subtitle_style_config(config)
-    if style["highlight_enabled"]:
+    if style["highlight_enabled"] or style["emoji_enabled"]:
         events = highlighted_caption_events_for_cue(text, cue_start, cue_end, config)
         if events:
             return events

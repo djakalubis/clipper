@@ -86,7 +86,7 @@ on:
       subtitle_emoji_popup_enabled:
         description: "Emoji popup subtitle: true/false"
         required: false
-        default: "false"
+        default: "true"
       ai_provider:
         description: "AI teks dikunci ke OpenAI; input lama diabaikan"
         required: false
@@ -303,6 +303,7 @@ jobs:
       THUMBNAIL_INTRO_SECONDS: ${{ secrets.THUMBNAIL_INTRO_SECONDS || '0.9' }}
       SUBTITLE_FONT_FAMILY: ${{ github.event.inputs.subtitle_font || secrets.SUBTITLE_FONT_FAMILY || 'Selawik Semibold' }}
       SUBTITLE_FALLBACK_FONTS: ${{ secrets.SUBTITLE_FALLBACK_FONTS || 'Selawik Semibold,Selawik,DejaVu Sans' }}
+      SUBTITLE_EMOJI_FONT_FAMILY: ${{ secrets.SUBTITLE_EMOJI_FONT_FAMILY || 'Noto Color Emoji' }}
       SUBTITLE_FONT_SIZE: ${{ github.event.inputs.subtitle_font_size || secrets.SUBTITLE_FONT_SIZE || '46' }}
       SCENE_MODE: ${{ github.event.inputs.scene_mode || secrets.SCENE_MODE || 'podcast' }}
       SMART_CROP_MODE: ${{ github.event.inputs.scene_mode || secrets.SMART_CROP_MODE || 'podcast' }}
@@ -315,7 +316,7 @@ jobs:
       SUBTITLE_OUTLINE_COLOUR: ${{ secrets.SUBTITLE_OUTLINE_COLOUR || '&H00111111' }}
       SUBTITLE_SHADOW_COLOUR: ${{ secrets.SUBTITLE_SHADOW_COLOUR || '&H66000000' }}
       SUBTITLE_WORD_HIGHLIGHT_ENABLED: ${{ github.event.inputs.subtitle_highlight_enabled || secrets.SUBTITLE_WORD_HIGHLIGHT_ENABLED || '0' }}
-      SUBTITLE_EMOJI_POPUP_ENABLED: ${{ github.event.inputs.subtitle_emoji_popup_enabled || secrets.SUBTITLE_EMOJI_POPUP_ENABLED || '0' }}
+      SUBTITLE_EMOJI_POPUP_ENABLED: ${{ github.event.inputs.subtitle_emoji_popup_enabled || secrets.SUBTITLE_EMOJI_POPUP_ENABLED || '1' }}
       SUBTITLE_HIGHLIGHT_BASE_COLOUR: ${{ secrets.SUBTITLE_HIGHLIGHT_BASE_COLOUR || '&H00FFFFFF' }}
       SUBTITLE_HIGHLIGHT_COLOUR: ${{ secrets.SUBTITLE_HIGHLIGHT_COLOUR || '&H0000FFFF' }}
       SUBTITLE_OUTLINE: ${{ secrets.SUBTITLE_OUTLINE || '4' }}
@@ -687,6 +688,26 @@ jobs:
             install -y --no-install-recommends ffmpeg
           sudo chmod -R a+rwx /var/cache/apt/archives || true
           ffmpeg -version | head -n 1
+
+      - name: Register emoji font
+        shell: bash
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          if ! fc-match "Noto Color Emoji" | grep -qi "NotoColorEmoji"; then
+            sudo apt-get \
+              -o Acquire::Retries=2 \
+              -o Acquire::http::Timeout=20 \
+              -o Acquire::https::Timeout=20 \
+              update
+            sudo apt-get \
+              -o Acquire::Retries=2 \
+              -o Acquire::http::Timeout=20 \
+              -o Acquire::https::Timeout=20 \
+              install -y --no-install-recommends fonts-noto-color-emoji
+          fi
+          fc-cache -f
+          fc-match "Noto Color Emoji"
 
       - name: Restore Selawik font cache
         id: selawik-cache
