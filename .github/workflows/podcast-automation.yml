@@ -80,7 +80,11 @@ on:
         required: false
         default: "0.06"
       subtitle_highlight_enabled:
-        description: "Subtitle word highlight + emoji popup: true/false"
+        description: "Subtitle word highlight: true/false"
+        required: false
+        default: "false"
+      subtitle_emoji_popup_enabled:
+        description: "Emoji popup subtitle: true/false"
         required: false
         default: "false"
       ai_provider:
@@ -311,7 +315,7 @@ jobs:
       SUBTITLE_OUTLINE_COLOUR: ${{ secrets.SUBTITLE_OUTLINE_COLOUR || '&H00111111' }}
       SUBTITLE_SHADOW_COLOUR: ${{ secrets.SUBTITLE_SHADOW_COLOUR || '&H66000000' }}
       SUBTITLE_WORD_HIGHLIGHT_ENABLED: ${{ github.event.inputs.subtitle_highlight_enabled || secrets.SUBTITLE_WORD_HIGHLIGHT_ENABLED || '0' }}
-      SUBTITLE_EMOJI_POPUP_ENABLED: ${{ github.event.inputs.subtitle_highlight_enabled || secrets.SUBTITLE_EMOJI_POPUP_ENABLED || '0' }}
+      SUBTITLE_EMOJI_POPUP_ENABLED: ${{ github.event.inputs.subtitle_emoji_popup_enabled || secrets.SUBTITLE_EMOJI_POPUP_ENABLED || '0' }}
       SUBTITLE_HIGHLIGHT_BASE_COLOUR: ${{ secrets.SUBTITLE_HIGHLIGHT_BASE_COLOUR || '&H00FFFFFF' }}
       SUBTITLE_HIGHLIGHT_COLOUR: ${{ secrets.SUBTITLE_HIGHLIGHT_COLOUR || '&H0000FFFF' }}
       SUBTITLE_OUTLINE: ${{ secrets.SUBTITLE_OUTLINE || '4' }}

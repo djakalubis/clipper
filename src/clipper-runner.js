@@ -52,6 +52,10 @@ export async function runClipper({ video, job, onLog = () => {} }) {
     video.use_subtitle_highlight ?? job.use_subtitle_highlight,
     boolInput(process.env.SUBTITLE_WORD_HIGHLIGHT_ENABLED, false)
   );
+  const useEmojiPopup = boolInput(
+    video.use_subtitle_emoji_popup ?? job.use_subtitle_emoji_popup,
+    boolInput(process.env.SUBTITLE_EMOJI_POPUP_ENABLED, false)
+  );
   const subtitleMarginV = Math.max(
     550,
     Number(video.subtitle_margin_v || process.env.SUBTITLE_MARGIN_V || 550) || 550
@@ -69,7 +73,7 @@ export async function runClipper({ video, job, onLog = () => {} }) {
     SUBTITLE_MARGIN_V: String(subtitleMarginV),
     SUBTITLE_MARGIN_H: String(video.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 180),
     SUBTITLE_WORD_HIGHLIGHT_ENABLED: useSubtitleHighlight ? "1" : "0",
-    SUBTITLE_EMOJI_POPUP_ENABLED: useSubtitleHighlight ? "1" : "0",
+    SUBTITLE_EMOJI_POPUP_ENABLED: useEmojiPopup ? "1" : "0",
     SCENE_MODE: sceneMode,
     SMART_CROP_MODE: sceneMode,
     THEME: String(video.theme || job.theme || config.defaultTheme || ""),

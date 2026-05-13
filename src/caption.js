@@ -45,17 +45,18 @@ export async function generateCaption({ job, output, promptTemplate, clipperRoot
   const dynamicHashtags = buildDynamicHashtags({ job, output, promptTemplate, context });
   const fallback = fallbackCaption(output, promptTemplate, dynamicHashtags);
   const prompt = [
-    "Buat caption Instagram Reels berbahasa Indonesia yang terasa seperti ngobrol langsung dengan pemirsa.",
+    "Buat caption Reels/TikTok berbahasa Indonesia yang terasa seperti ngobrol langsung dengan pemirsa.",
     "Aturan:",
-    "- Baris pertama harus hook kuat dan conversational, boleh berupa pertanyaan tajam, komentar spontan, atau kutipan pendek yang bikin penasaran.",
-    "- Paragraf kedua wajib membahas topik utama video secara spesifik: isu, konflik, sudut pandang, insight, atau momen yang sedang dibicarakan.",
-    "- Tulis seperti kreator yang mengajak pemirsa ikut mikir/menanggapi, bukan seperti laporan formal.",
-    "- Gunakan kata sapaan seperti kamu/kita secukupnya agar terasa interaktif.",
-    "- Boleh pakai 1 pertanyaan retoris atau pertanyaan diskusi yang nyambung dengan topik video.",
+    "- Format wajib 4 blok, dipisah 1 baris kosong: hook, isi singkat, CTA, hashtag.",
+    "- Baris pertama hook kuat dan conversational, maksimal 90 karakter. Boleh pakai 1 emoji yang natural.",
+    "- Blok isi maksimal 2 kalimat pendek dan spesifik membahas topik utama video.",
+    "- CTA berupa 1 pertanyaan ringan, maksimal 80 karakter.",
+    "- Total caption ideal 280-480 karakter, jangan terlalu panjang.",
+    "- Tulis seperti kreator yang mengajak pemirsa ikut mikir/menanggapi, bukan laporan formal.",
+    "- Gunakan kata sapaan seperti kamu/kita secukupnya.",
     "- Hindari kalimat template kaku seperti 'Dalam video ini', 'Potongan ini', atau 'Video ini membahas'.",
-    "- Ringkas, natural, emosional, dan tetap sesuai transkrip.",
+    "- Ringkas, natural, emosional, dan tetap sesuai transkrip. Boleh pakai emoji, tapi jangan berlebihan.",
     "- Jangan mengarang fakta di luar konteks.",
-    "- Tambahkan CTA ringan yang mengundang komentar pemirsa tentang topik clip.",
     "- Caption harus selesai utuh. Jangan akhiri dengan kalimat terpotong, koma, titik dua, kata sambung, atau ellipsis.",
     "- Jangan menyalin mentah transkrip yang terpotong; rangkum jadi kalimat lengkap.",
     "- Akhiri dengan tepat 3 hashtag relevan. Prioritaskan 1 hashtag konteks/tokoh/topik jika ada.",
@@ -72,7 +73,7 @@ export async function generateCaption({ job, output, promptTemplate, clipperRoot
     "Tulis caption final saja tanpa markdown."
   ].join("\n");
 
-  const text = await generateAiText(prompt, { maxOutputTokens: 900, provider: aiProvider });
+  const text = await generateAiText(prompt, { maxOutputTokens: 360, provider: aiProvider });
   return ensureCaptionHashtags(text || fallback, output, promptTemplate, dynamicHashtags, fallback);
 }
 
@@ -187,8 +188,144 @@ function ensureCaptionHashtags(caption, output, promptTemplate, dynamicHashtags 
   const cleaned = String(caption || "").trim();
   const hashtags = captionHashtags({ caption: cleaned, dynamicHashtags, output, promptTemplate });
   if (!hashtags.length) return cleaned;
-  const body = completeCaptionBody(stripHashtags(cleaned), stripHashtags(fallback));
-  return `${body || cleaned}\n\n${hashtags.join(" ")}`.trim();
+  const body = formatSocialCaptionBody(stripHashtags(cleaned), stripHashtags(fallback), promptTemplate);
+  return fitCaptionWithHashtags(body || cleaned, hashtags);
+}
+
+function formatSocialCaptionBody(value, fallback = "", promptTemplate = {}) {
+  const completed = completeCaptionBody(value, fallback);
+  const source = normalizeCaptionBody(completed || fallback);
+  const fallbackSource = normalizeCaptionBody(fallback);
+  if (!source && !fallbackSource) return "Ada momen menarik dari obrolan ini.";
+
+  const paragraphs = splitCaptionParagraphs(source || fallbackSource);
+  const sentences = splitCaptionSentences(source || fallbackSource);
+  const fallbackSentences = splitCaptionSentences(fallbackSource);
+
+  const hook = tightenCaptionLine(
+    paragraphs[0] || sentences[0] || "Ada momen menarik dari obrolan ini.",
+    CAPTION_HOOK_MAX_CHARS
+  );
+
+  const detailCandidates = [
+    ...sentences.slice(1).filter((item) => !isQuestionSentence(item)),
+    ...fallbackSentences.filter((item) => !isQuestionSentence(item)),
+    paragraphs.slice(1).join(" ")
+  ];
+  const detail = tightenCaptionLine(
+    firstMeaningfulCaptionLine(detailCandidates, hook) || "Topiknya dekat dengan hal yang sering kita lihat sehari-hari.",
+    CAPTION_BODY_MAX_CHARS
+  );
+
+  const cta = tightenCaptionLine(
+    findCaptionQuestion(source, hook)
+      || promptTemplate?.cta
+      || "Menurut kamu, ini relate nggak?",
+    CAPTION_CTA_MAX_CHARS
+  );
+
+  return dedupeCaptionBlocks([hook, detail, cta]).join("\n\n");
+}
+
+function fitCaptionWithHashtags(body, hashtags) {
+  const tagLine = hashtags.join(" ");
+  let blocks = splitCaptionParagraphs(body).slice(0, 3);
+  let text = `${blocks.join("\n\n")}\n\n${tagLine}`.trim();
+  if (captionLength(text) <= CAPTION_MAX_CHARS) return text;
+
+  blocks = blocks.map((block, index) => {
+    if (index === 0) return tightenCaptionLine(block, CAPTION_HOOK_MAX_CHARS);
+    if (index === 1) return tightenCaptionLine(block, CAPTION_BODY_SHORT_MAX_CHARS);
+    return tightenCaptionLine(block, CAPTION_CTA_MAX_CHARS);
+  });
+  text = `${dedupeCaptionBlocks(blocks).join("\n\n")}\n\n${tagLine}`.trim();
+  if (captionLength(text) <= CAPTION_MAX_CHARS) return text;
+
+  const available = Math.max(80, CAPTION_MAX_CHARS - captionLength(tagLine) - 4);
+  const compactBody = tightenCaptionLine(dedupeCaptionBlocks(blocks).join(" "), available);
+  return `${compactBody}\n\n${tagLine}`.trim();
+}
+
+function splitCaptionParagraphs(value) {
+  return normalizeCaptionBody(value)
+    .split(/\n{1,}/)
+    .map((item) => normalizeCaptionBody(item))
+    .filter(Boolean);
+}
+
+function splitCaptionSentences(value) {
+  const text = normalizeCaptionBody(value).replace(/\n+/g, " ");
+  return (text.match(/[^.!?\n]+[.!?]+|[^.!?\n]+$/g) || [])
+    .map((item) => normalizeCaptionBody(item))
+    .filter((item) => item.split(/\s+/).filter(Boolean).length >= 3);
+}
+
+function tightenCaptionLine(value, maxChars) {
+  const cleaned = normalizeCaptionBody(value).replace(/\n+/g, " ");
+  if (!cleaned) return "";
+  if (captionLength(cleaned) <= maxChars) return completeSentence(cleaned);
+
+  const clipped = takeCaptionChars(cleaned, maxChars);
+  const sentence = trimToLastCompleteSentence(clipped);
+  if (captionLength(sentence) >= 28) return sentence;
+
+  const words = [];
+  for (const word of cleaned.split(/\s+/)) {
+    const candidate = [...words, word].join(" ");
+    if (captionLength(candidate) > maxChars) break;
+    words.push(word);
+  }
+  return completeSentence(words.join(" ") || clipped);
+}
+
+function firstMeaningfulCaptionLine(candidates, hook) {
+  const hookKey = captionBlockKey(hook);
+  for (const item of candidates) {
+    const cleaned = normalizeCaptionBody(item).replace(/\n+/g, " ");
+    if (!cleaned || captionBlockKey(cleaned) === hookKey) continue;
+    if (cleaned.split(/\s+/).filter(Boolean).length < 5) continue;
+    return cleaned;
+  }
+  return "";
+}
+
+function findCaptionQuestion(value, hook = "") {
+  const hookKey = captionBlockKey(hook);
+  return splitCaptionSentences(value)
+    .filter(isQuestionSentence)
+    .find((item) => captionBlockKey(item) !== hookKey) || "";
+}
+
+function isQuestionSentence(value) {
+  return /\?$/.test(normalizeCaptionBody(value));
+}
+
+function dedupeCaptionBlocks(blocks) {
+  const seen = new Set();
+  const result = [];
+  for (const block of blocks) {
+    const cleaned = normalizeCaptionBody(block);
+    const key = captionBlockKey(cleaned);
+    if (!cleaned || seen.has(key)) continue;
+    seen.add(key);
+    result.push(cleaned);
+  }
+  return result;
+}
+
+function captionBlockKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .slice(0, 80);
+}
+
+function captionLength(value) {
+  return Array.from(String(value || "")).length;
+}
+
+function takeCaptionChars(value, maxChars) {
+  return Array.from(String(value || "")).slice(0, maxChars).join("").trim();
 }
 
 function completeCaptionBody(value, fallback = "") {
@@ -447,6 +584,11 @@ const BASE_HASHTAGS = [
 ];
 
 const HASHTAG_LIMIT = 3;
+const CAPTION_MAX_CHARS = 480;
+const CAPTION_HOOK_MAX_CHARS = 90;
+const CAPTION_BODY_MAX_CHARS = 190;
+const CAPTION_BODY_SHORT_MAX_CHARS = 150;
+const CAPTION_CTA_MAX_CHARS = 80;
 
 const INCOMPLETE_CAPTION_END_RE = /(?:\.{3}|…|[,;:]|\s[-–]|\b(?:dan|atau|karena|yang|untuk|dengan|ke|di|dari|agar|supaya|kalau|tapi|jadi|sehingga|lalu|terus|bahwa|seperti|saat|ketika|biar))$/i;
 
