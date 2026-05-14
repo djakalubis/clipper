@@ -558,7 +558,7 @@ Contoh data:
   "hook_style": "emotional curiosity",
   "language": "id",
   "cta": "Menurut kamu, bagian paling relate yang mana?",
-  "hashtag_template": "#PodcastIndonesia #PodcastArtis #ReelsIndonesia"
+  "hashtag_template": "#CeritaHidup #SudutPandang #RuangCerita"
 }
 ```
 
@@ -821,7 +821,7 @@ VIDEO_FRAME_ENABLED=true
 VIDEO_FILTER_ENABLED=true
 VIDEO_WATERMARK_ENABLED=true
 VIDEO_LOWER_THIRD_ENABLED=true
-VIDEO_LOWER_THIRD_BRAND=@clipperemsapro | Podcast Highlight
+VIDEO_LOWER_THIRD_BRAND=@PodFlask | Podcast Highlight
 VIDEO_FRAME_ASSET=assets/branding/frame-1080x1920.png
 VIDEO_WATERMARK_ASSET=assets/branding/logo.png
 VIDEO_EFFECT_CRF=27
@@ -951,7 +951,7 @@ Default global untuk quote rapi di area kosong bawah frame. Default: `true`.
 
 #### `VIDEO_LOWER_THIRD_BRAND`
 
-Teks kecil di bawah quote lower-third. Default: `@clipperemsapro | Podcast Highlight`.
+Teks kecil di bawah quote lower-third. Default: `@PodFlask | Podcast Highlight`.
 
 #### `VIDEO_FRAME_ASSET`
 
@@ -1269,7 +1269,7 @@ FINAL_RENDER_CRF=27
 BACKGROUND_MUSIC_ENABLED=1
 BACKGROUND_MUSIC_FILE=auto
 BACKGROUND_MUSIC_MAP_FILE=assets/music/music-map.json
-BACKGROUND_MUSIC_VOLUME=0.06
+BACKGROUND_MUSIC_VOLUME=0.05
 BACKGROUND_MUSIC_ORIGINAL_VOLUME=1.0
 
 YTDLP_COOKIES_FILE=cookies.txt
@@ -1281,10 +1281,10 @@ SUBTITLE_OFFSET_SECONDS=0
 SUBTITLE_FONT_FAMILY=Segoe UI Semibold
 SUBTITLE_FALLBACK_FONTS=Segoe UI,Arial,DejaVu Sans
 SUBTITLE_FONT_SIZE=56
-SUBTITLE_MIN_FONT_SIZE=42
+SUBTITLE_MIN_FONT_SIZE=48
 SUBTITLE_MARGIN_V=550
-SUBTITLE_MARGIN_H=180
-SUBTITLE_MAX_LINES=2
+SUBTITLE_MARGIN_H=80
+SUBTITLE_MAX_LINES=3
 SUBTITLE_PRIMARY_COLOUR=&H0000FFFF
 SUBTITLE_OUTLINE_COLOUR=&H00111111
 SUBTITLE_SHADOW_COLOUR=&H66000000

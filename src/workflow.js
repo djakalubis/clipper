@@ -181,7 +181,7 @@ async function createManualSelection(options) {
     subtitle_font: options.subtitleFont || "Segoe UI Semibold",
     subtitle_font_size: options.subtitleFontSize || 56,
     subtitle_margin_v: options.subtitleMarginV || 550,
-    subtitle_margin_h: options.subtitleMarginH || 180,
+    subtitle_margin_h: options.subtitleMarginH || Number(process.env.SUBTITLE_MARGIN_H || 80),
     use_frame: options.useFrame,
     use_filter: options.useFilter,
     use_watermark: options.useWatermark,

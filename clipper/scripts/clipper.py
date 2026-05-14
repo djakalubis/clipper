@@ -1366,10 +1366,13 @@ Viral strategy wajib dipakai:
 - publish_decision gunakan "publish" hanya jika score >= {config.get('min_viral_score_to_publish', 55)} atau hook sangat kuat; selain itu "borderline".
 - thumbnail_text wajib 6-12 kata, tegas, dan tidak clickbait palsu.
 - hashtags maksimal 3 dan relevan.
+- Jangan pakai hashtag generik seperti #PodcastIndonesia, #Shorts, #FYP, atau #Viral.
+- Hindari kata/hashtag rawan platform seperti judi, slot, togel, taruhan, SARA, ujaran kebencian, pornografi, narkoba, atau kekerasan ekstrem.
+- Jika ada nama tokoh/artis/narasumber, sebutkan namanya secara natural di caption dan prioritaskan hashtag nama tokoh tersebut.
 - caption wajib 2-3 kalimat lengkap, natural, dan terasa seperti mengajak pemirsa ngobrol.
 - caption harus membahas topik utama candidate secara spesifik, bukan kalimat promosi generik.
 - Sisipkan pertanyaan ringan atau ajakan komentar yang nyambung dengan isu/insight di clip.
-- Hindari gaya kaku seperti "Dalam video ini", "Potongan ini", atau "Video ini membahas".
+- Hindari gaya kaku seperti "Dalam video ini", "Potongan ini", "Video ini membahas", "Kenapa ini menarik", atau "Poin:".
 - Jangan berakhir dengan koma, kata sambung, atau ellipsis.
 """
 
@@ -1404,7 +1407,7 @@ Format output:
     "thumbnail_text": "TEKS COVER YANG KUAT",
     "viral_score": 78,
     "publish_decision": "publish",
-    "hashtags": ["#PodcastIndonesia", "#Tokoh", "#Shorts"]
+    "hashtags": ["#NamaTokoh", "#SudutPandang", "#CeritaHidup"]
   }}
 ]
 
@@ -1677,10 +1680,10 @@ def subtitle_style_config(config):
     font_name = (os.environ.get("SUBTITLE_FONT_FAMILY") or "Segoe UI Semibold").strip() or "Segoe UI Semibold"
     font_name = re.sub(r"[\r\n,]+", " ", font_name).strip() or "Segoe UI Semibold"
     font_size = clamp_int(parse_int(os.environ.get("SUBTITLE_FONT_SIZE"), 56), 28, 84)
-    min_font_size = clamp_int(parse_int(os.environ.get("SUBTITLE_MIN_FONT_SIZE"), 42), 24, font_size)
+    min_font_size = clamp_int(parse_int(os.environ.get("SUBTITLE_MIN_FONT_SIZE"), 48), 24, font_size)
     margin_h = clamp_int(parse_int(os.environ.get("SUBTITLE_MARGIN_H"), default_margin_h), min_margin_h, max_margin_h)
     margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_MARGIN_V"), 550), 550, max(550, int(height * 0.48)))
-    max_lines = clamp_int(parse_int(os.environ.get("SUBTITLE_MAX_LINES"), 2), 1, 3)
+    max_lines = clamp_int(parse_int(os.environ.get("SUBTITLE_MAX_LINES"), 3), 1, 3)
     emoji_margin_v = clamp_int(parse_int(os.environ.get("SUBTITLE_EMOJI_MARGIN_V"), margin_v + int(font_size * 4.6)), margin_v, max(margin_v, height - 120))
 
     return {

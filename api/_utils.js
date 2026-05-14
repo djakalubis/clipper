@@ -181,10 +181,10 @@ export function configSummary() {
     backgroundMusicEnabled: boolEnv("BACKGROUND_MUSIC_ENABLED", true),
     backgroundMusicFile: clean(process.env.BACKGROUND_MUSIC_FILE || ""),
     backgroundMusicMapFile: clean(process.env.BACKGROUND_MUSIC_MAP_FILE || "assets/music/music-map.json"),
-    backgroundMusicVolume: clean(process.env.BACKGROUND_MUSIC_VOLUME || "0.06"),
+    backgroundMusicVolume: clean(process.env.BACKGROUND_MUSIC_VOLUME || "0.05"),
     subtitleFont: clean(process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
     subtitleMarginV: clean(process.env.SUBTITLE_MARGIN_V || "550"),
-    subtitleHighlightEnabled: boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", false),
+    subtitleHighlightEnabled: boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", true),
     vercelDashboard: true
   };
 }
@@ -300,12 +300,12 @@ export function buildVideo(input) {
     subtitle_font: clean(input.subtitle_font || process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
     subtitle_font_size: Number(input.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || 56),
     subtitle_margin_v: Number(input.subtitle_margin_v || process.env.SUBTITLE_MARGIN_V || 550),
-    subtitle_margin_h: Number(input.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 180),
+    subtitle_margin_h: Number(input.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 80),
     use_frame: boolInput(input.use_frame, boolEnv("VIDEO_FRAME_ENABLED", true)),
     use_filter: boolInput(input.use_filter, boolEnv("VIDEO_FILTER_ENABLED", true)),
     use_watermark: boolInput(input.use_watermark, boolEnv("VIDEO_WATERMARK_ENABLED", true)),
     use_music: boolInput(input.use_music, boolEnv("BACKGROUND_MUSIC_ENABLED", true)),
-    use_subtitle_highlight: boolInput(input.use_subtitle_highlight, boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", false)),
+    use_subtitle_highlight: boolInput(input.use_subtitle_highlight, boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", true)),
     force_reprocess: input.force_reprocess === true,
     created_at: input.created_at || now,
     updated_at: now

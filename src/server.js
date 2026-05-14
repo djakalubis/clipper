@@ -312,7 +312,7 @@ app.get("/api/state", async (_req, res) => {
       backgroundMusicEnabled: boolInput(process.env.BACKGROUND_MUSIC_ENABLED, true),
       backgroundMusicFile: process.env.BACKGROUND_MUSIC_FILE || "",
       backgroundMusicMapFile: process.env.BACKGROUND_MUSIC_MAP_FILE || "assets/music/music-map.json",
-      backgroundMusicVolume: process.env.BACKGROUND_MUSIC_VOLUME || "0.06",
+      backgroundMusicVolume: process.env.BACKGROUND_MUSIC_VOLUME || "0.05",
       aiProvider: config.ai.provider,
       subtitleFont: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
       subtitleMarginV: process.env.SUBTITLE_MARGIN_V || "550",
@@ -546,7 +546,7 @@ app.post("/api/prompts", async (req, res) => {
     hook_style: req.body.hook_style || "emotional curiosity",
     language: req.body.language || "id",
     cta: req.body.cta || "Menurut kamu bagaimana?",
-    hashtag_template: req.body.hashtag_template || "#PodcastIndonesia #ReelsIndonesia",
+    hashtag_template: req.body.hashtag_template || "#CeritaHidup #SudutPandang #RuangCerita",
     thumbnail_style: req.body.thumbnail_style || "singkat dan kuat",
     updated_at: new Date().toISOString()
   };

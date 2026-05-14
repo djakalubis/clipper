@@ -1190,7 +1190,7 @@ export async function discoverAndQueueVideos(options = {}) {
       subtitle_font: process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold",
       subtitle_font_size: Number(process.env.SUBTITLE_FONT_SIZE || 56),
       subtitle_margin_v: Number(process.env.SUBTITLE_MARGIN_V || 550),
-      subtitle_margin_h: Number(process.env.SUBTITLE_MARGIN_H || 180),
+      subtitle_margin_h: Number(process.env.SUBTITLE_MARGIN_H || 80),
       use_frame: boolEnv("VIDEO_FRAME_ENABLED", true),
       use_filter: boolEnv("VIDEO_FILTER_ENABLED", true),
       use_watermark: boolEnv("VIDEO_WATERMARK_ENABLED", true),

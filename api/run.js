@@ -29,12 +29,12 @@ export default async function handler(req, res) {
       subtitle_font: clean(body.subtitle_font || process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
       subtitle_font_size: clean(body.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || "56"),
       subtitle_margin_v: clean(body.subtitle_margin_v || process.env.SUBTITLE_MARGIN_V || "550"),
-      subtitle_margin_h: clean(body.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || "180"),
+      subtitle_margin_h: clean(body.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || "80"),
       use_frame: boolInput(body.use_frame, boolEnv("VIDEO_FRAME_ENABLED", true)) ? "true" : "false",
       use_filter: boolInput(body.use_filter, boolEnv("VIDEO_FILTER_ENABLED", true)) ? "true" : "false",
       use_watermark: boolInput(body.use_watermark, boolEnv("VIDEO_WATERMARK_ENABLED", true)) ? "true" : "false",
       background_music_enabled: boolInput(body.use_music, boolEnv("BACKGROUND_MUSIC_ENABLED", true)) ? "1" : "0",
-      subtitle_highlight_enabled: boolInput(body.use_subtitle_highlight, boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", false)) ? "true" : "false"
+      subtitle_highlight_enabled: boolInput(body.use_subtitle_highlight, boolEnv("SUBTITLE_WORD_HIGHLIGHT_ENABLED", true)) ? "true" : "false"
     };
 
     const dispatch = await dispatchWorkflow(inputs);

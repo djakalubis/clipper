@@ -22,8 +22,8 @@ def clean_text(value, fallback=""):
 
 
 def normalize_brand(value):
-    text = clean_text(value, "@clipperemsapro | Podcast Highlight")
-    return re.sub(r"@emsa\.pro\b", "@clipperemsapro", text, flags=re.IGNORECASE)
+    text = clean_text(value, "@PodFlask | Podcast Highlight")
+    return re.sub(r"@(?:emsa\.pro|clipperemsapro)\b", "@PodFlask", text, flags=re.IGNORECASE)
 
 
 def clean_title(value):

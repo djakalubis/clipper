@@ -31,7 +31,7 @@ const options = {
   subtitleFont: argValue("--subtitle-font", process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
   subtitleFontSize: Number(argValue("--subtitle-font-size", process.env.SUBTITLE_FONT_SIZE || "56")),
   subtitleMarginV: Number(argValue("--subtitle-margin-v", process.env.SUBTITLE_MARGIN_V || "550")),
-  subtitleMarginH: Number(argValue("--subtitle-margin-h", process.env.SUBTITLE_MARGIN_H || "180")),
+  subtitleMarginH: Number(argValue("--subtitle-margin-h", process.env.SUBTITLE_MARGIN_H || "80")),
   useFrame: optionalBoolArg("--use-frame"),
   useFilter: optionalBoolArg("--use-filter"),
   useWatermark: optionalBoolArg("--use-watermark"),

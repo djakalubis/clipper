@@ -2,7 +2,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import axios from "axios";
 import { config } from "./config.js";
-import { buildSourceCreditBlock, ensureCaptionSourceCredit, stripCaptionSourceCredit } from "./caption-policy.js";
+import { stripCaptionSourceCredit } from "./caption-policy.js";
 import { extractYoutubeVideoId } from "./youtube.js";
 
 const tokenUrl = "https://oauth2.googleapis.com/token";
@@ -176,52 +176,34 @@ export async function getYoutubeChannel() {
 
 export function buildYoutubeMetadata({ job, output, caption }) {
   const source = youtubeSourceDetails({ job, output });
-  const cleanCaption = stripCaptionSourceCredit(caption, {
+  const cleanCaption = sanitizeYoutubeCaption(stripCaptionSourceCredit(caption, {
     sourceUrl: source.sourceUrl
-  });
-  const creditedCaption = ensureCaptionSourceCredit(cleanCaption, {
-    sourceUrl: source.sourceUrl,
-    sourceTitle: source.sourceTitle,
-    sourceChannel: source.sourceChannel,
-    sourceVideoId: source.sourceVideoId,
-    maxLength: 1600
-  });
+  }));
   const context = [
     output.clipTranscript,
     output.caption,
     output.reason,
     output.title,
     output.hook,
-    creditedCaption
+    cleanCaption
   ].filter(Boolean).join(" ");
   const theme = detectTheme(context);
-  const person = detectPerson({ job, output, caption: creditedCaption }) || "Podcast Indonesia";
-  const hook = buildHookTitle({ job, output, caption: creditedCaption, theme });
+  const person = detectPerson({ job, output, caption: cleanCaption }) || source.sourceChannel || "";
+  const hook = buildHookTitle({ job, output, caption: cleanCaption, theme });
   const rawTitle = normalizeTitleWithPerson(config.youtube.titlePrefix, hook, person);
-  const hashtags = buildYoutubeHashtags({ theme, person, caption: creditedCaption, context });
-  const firstLine = firstStrongLine(creditedCaption) || cleanText(output.clipTranscript || output.caption || hook).slice(0, 180);
-  const keywordLine = buildYoutubeKeywordLine({ theme, person, source });
-  const angle = cleanText(output.selectedAngle || output.reason || output.hook || hook);
-  const insight = cleanText(output.reason || output.hook || output.clipTranscript || hook).slice(0, 160);
-  const dynamicTags = tagsFromCaption(creditedCaption);
-  const retentionLine = buildRetentionLine({ angle, theme });
-  const insightLine = insight && !sameText(insight, firstLine) && !sameText(insight, angle)
-    ? `Poin: ${insight}`
-    : "";
-  const engagementLine = buildEngagementLine({ theme, person });
-  const sourceCredit = buildSourceCreditBlock(source);
+  const hashtags = buildYoutubeHashtags({ theme, person, caption: cleanCaption, context });
+  const captionBody = ensureYoutubeCaptionHashtags(
+    cleanCaption || youtubeFallbackCaption({ output, hook, hashtags, person }),
+    hashtags
+  );
+  const dynamicTags = tagsFromCaption(captionBody);
+  const sourceCredit = buildYoutubeSourceBlock(source);
 
   const descriptionParts = [
-    firstLine,
-    keywordLine,
-    "",
-    retentionLine,
-    ...(insightLine ? [insightLine] : []),
-    engagementLine,
+    captionBody,
     "",
     sourceCredit,
     "",
-    hashtags.join(" "),
     config.youtube.descriptionFooter
   ];
   const description = compactDescriptionParts(descriptionParts).join("\n");
@@ -232,14 +214,10 @@ export function buildYoutubeMetadata({ job, output, caption }) {
     tags: normalizeTags([
       ...config.youtube.tags,
       ...dynamicTags,
-      "shorts indonesia",
-      "podcast indonesia",
-      "podcast viral",
-      "highlight podcast",
       theme,
       person,
       source.sourceChannel,
-      ...keywordsFromText(`${hook} ${person} ${theme} ${angle} ${source.sourceTitle} ${source.sourceChannel} ${output.title || ""} ${output.hook || ""}`)
+      ...keywordsFromText(`${hook} ${person} ${theme} ${source.sourceTitle} ${source.sourceChannel} ${output.title || ""} ${output.hook || ""}`)
     ])
   };
 }
@@ -273,54 +251,9 @@ function normalizeTitleWithPerson(prefix, hook, person) {
   const personSuffix = cleanPerson && !cleanHook.toLowerCase().includes(cleanPerson.toLowerCase())
     ? ` - ${cleanPerson}`
     : "";
-  const withPerson = [prefix, `${cleanHook}${personSuffix}`, "#Shorts"].filter(Boolean).join(" ");
+  const withPerson = [prefix, `${cleanHook}${personSuffix}`].filter(Boolean).join(" ");
   if (withPerson.length <= 100) return withPerson;
-  return [prefix, cleanHook, "#Shorts"].filter(Boolean).join(" ").slice(0, 100);
-}
-
-function buildRetentionLine({ angle, theme }) {
-  const cleanAngle = cleanText(angle);
-  if (cleanAngle && cleanAngle.length >= 18) {
-    return `Kenapa ini menarik: ${cleanAngle}`;
-  }
-  const fallback = {
-    bisnis: "Kenapa ini menarik: ada cara pandang bisnis yang jarang dibahas.",
-    leadership: "Kenapa ini menarik: ada pelajaran memimpin yang bisa langsung terasa.",
-    motivasi: "Kenapa ini menarik: pesannya sederhana, tapi bisa kena ke banyak orang.",
-    karir: "Kenapa ini menarik: ada nasihat karir yang sering luput.",
-    keuangan: "Kenapa ini menarik: ada sudut pandang uang yang penting dipahami.",
-    agama: "Kenapa ini menarik: pengingatnya singkat dan mudah direnungkan.",
-    keadilan: "Kenapa ini menarik: ada konflik dan sikap yang kuat.",
-    podcast: "Kenapa ini menarik: potongan obrolannya punya hook yang kuat.",
-    inspirasi: "Kenapa ini menarik: ada pesan yang mudah dibagikan."
-  };
-  return fallback[theme] || fallback.inspirasi;
-}
-
-function buildYoutubeKeywordLine({ theme, person, source }) {
-  const cleanPerson = cleanText(person);
-  const cleanChannel = cleanText(source.sourceChannel);
-  const topic = cleanText(theme);
-  const subject = cleanPerson && cleanPerson !== "Podcast Indonesia"
-    ? cleanPerson
-    : cleanChannel || "Podcast Indonesia";
-  const topicText = topic && !["podcast", "inspirasi"].includes(topic)
-    ? ` tentang ${topic}`
-    : "";
-  return `Highlight podcast ${subject}${topicText} untuk Shorts Indonesia.`;
-}
-
-function buildEngagementLine({ theme, person }) {
-  const cleanPerson = cleanText(person);
-  const topic = theme === "keadilan"
-    ? "sikap ini"
-    : theme === "bisnis"
-      ? "cara mikir ini"
-      : "poin ini";
-  if (cleanPerson && cleanPerson !== "Podcast Indonesia") {
-    return `Tonton sampai akhir biar konteksnya utuh. Kamu setuju sama ${topic} dari ${cleanPerson}?`;
-  }
-  return `Tonton sampai akhir biar konteksnya utuh. Kamu setuju sama ${topic}?`;
+  return [prefix, cleanHook].filter(Boolean).join(" ").slice(0, 100);
 }
 
 function firstStrongLine(value) {
@@ -334,6 +267,16 @@ function cleanText(value = "") {
   return String(value)
     .replace(/\s+/g, " ")
     .replace(/[^\p{L}\p{N}\s#@.,!?|:'"-]/gu, "")
+    .trim();
+}
+
+function sanitizeYoutubeCaption(value = "") {
+  return String(value || "")
+    .replace(/^\s*(?:kenapa\s+ini\s+menarik|poin)\s*:\s*/gim, "")
+    .replace(/\b(?:dalam\s+video\s+ini|potongan\s+ini|video\s+ini\s+membahas)\b/giu, "")
+    .replace(/\b(?:judi\s*online|judi|slot|togel|casino|taruhan|betting)\b/giu, "jalan pintas berisiko")
+    .replace(/\bSARA\b/giu, "isu perbedaan")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -370,19 +313,17 @@ function youtubeSourceDetails({ job = {}, output = {} } = {}) {
   };
 }
 
-function sameText(left, right) {
-  return cleanText(left).toLowerCase() === cleanText(right).toLowerCase();
-}
-
 function toHashtag(value = "") {
   const cleaned = cleanText(value)
     .replace(/^#+/, "")
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
+    .filter((word) => !isUnsafeTopic(word))
     .slice(0, 3)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join("");
-  return cleaned ? `#${cleaned}` : "";
+  const tag = cleaned ? `#${cleaned}` : "";
+  return tag && !isGenericHashtag(tag) && !isUnsafeHashtag(tag) ? tag : "";
 }
 
 function detectTheme(text = "") {
@@ -431,8 +372,9 @@ function detectPerson({ job, output, caption }) {
   ].filter(Boolean).join(" ");
   const known = [
     "Yusuf Hamka",
-    "Ayu Ting Ting",
+    "Ahmad Dhani",
     "Ariel NOAH",
+    "Ayu Ting Ting",
     "Deddy Corbuzier",
     "Raditya Dika",
     "Vidi Aldiano",
@@ -471,17 +413,43 @@ function isLikelyPersonName(value) {
 }
 
 function buildYoutubeHashtags({ theme, person, caption, context }) {
-  const fromCaption = extractHashtags(caption);
+  const fromCaption = extractHashtags(caption).filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag));
   const candidates = [
-    "#Shorts",
     toHashtag(theme),
     person ? toHashtag(person) : "",
     ...topicHashtags(context),
-    "#PodcastIndonesia",
-    "#Motivasi"
+    "#CeritaHidup",
+    "#SudutPandang",
+    "#RuangCerita"
   ];
-  const values = [...candidates, ...fromCaption, "#PodcastIndonesia", "#Indonesia"].filter(Boolean);
+  const values = [...fromCaption, ...candidates]
+    .filter(Boolean)
+    .filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag));
   return uniqueNormalized(values).slice(0, 3);
+}
+
+function ensureYoutubeCaptionHashtags(caption, hashtags) {
+  const cleanCaption = sanitizeYoutubeCaption(caption);
+  const existing = extractHashtags(cleanCaption).filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag));
+  if (existing.length) return cleanCaption;
+  const tagLine = hashtags.filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag)).slice(0, 3).join(" ");
+  return [cleanCaption, tagLine].filter(Boolean).join("\n\n").trim();
+}
+
+function youtubeFallbackCaption({ output, hook, hashtags, person }) {
+  const subject = person && person !== "Podcast Indonesia" ? person : "Cerita ini";
+  const first = cleanText(output.hook || hook || `${subject} punya sudut pandang yang bikin kepikiran.`);
+  const body = cleanText(output.reason || output.selectedAngle || "Ada pilihan dan tekanan yang bikin sudut pandangnya terasa dekat.");
+  const cta = "Menurut kamu, sikapnya masuk akal nggak?";
+  return [first, body, cta, hashtags.join(" ")].filter(Boolean).join("\n\n");
+}
+
+function buildYoutubeSourceBlock(source) {
+  const lines = [];
+  const sourceName = [source.sourceChannel, source.sourceTitle].filter(Boolean).join(" - ");
+  if (sourceName) lines.push(`Sumber: ${sourceName}`);
+  if (source.sourceUrl) lines.push(`Source Link Sumber: ${source.sourceUrl}`);
+  return lines.join("\n");
 }
 
 function compactDescriptionParts(parts) {
@@ -500,7 +468,7 @@ function tagsFromCaption(value) {
   return String(value || "")
     .match(/#[\p{L}\p{N}_]+/gu)
     ?.map((tag) => tag.replace(/^#/, ""))
-    .filter(Boolean) || [];
+    .filter((tag) => tag && !isGenericHashtag(tag) && !isUnsafeHashtag(tag)) || [];
 }
 
 function keywordsFromText(value) {
@@ -525,7 +493,7 @@ function keywordsFromText(value) {
   for (const word of String(value || "").split(/[^\p{L}\p{N}]+/u)) {
     const cleaned = word.trim();
     const key = cleaned.toLowerCase();
-    if (cleaned.length < 4 || stopwords.has(key) || seen.has(key)) continue;
+    if (cleaned.length < 4 || stopwords.has(key) || seen.has(key) || isUnsafeTopic(key)) continue;
     seen.add(key);
     tags.push(cleaned);
     if (tags.length >= 8) break;
@@ -541,10 +509,13 @@ function topicHashtags(value) {
   const source = String(value || "").toLowerCase();
   const tags = [];
   if (/\byusuf\s+hamka\b/i.test(value)) tags.push("#YusufHamka");
+  if (/\bahmad\s+dhani\b/i.test(value)) tags.push("#AhmadDhani");
+  if (/\bariel\s+noah\b/i.test(value)) tags.push("#ArielNOAH");
   if (/hak|adil|keadilan|nuntut|tuntut|perjuang/.test(source)) tags.push("#Keadilan");
   if (/bisnis|usaha|jualan|dagang/.test(source)) tags.push("#Bisnis");
-  if (/motivasi|bangkit|gagal|sukses/.test(source)) tags.push("#Motivasi");
-  return tags;
+  if (/musik|lagu|band|penyanyi|musisi|royalti/.test(source)) tags.push("#CeritaMusik");
+  if (/motivasi|bangkit|gagal|sukses/.test(source)) tags.push("#CeritaHidup");
+  return tags.filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag));
 }
 
 function uniqueNormalized(values) {
@@ -561,21 +532,49 @@ function uniqueNormalized(values) {
   return result;
 }
 
+function isGenericHashtag(value) {
+  const key = String(value || "")
+    .replace(/^#+/, "")
+    .toLowerCase();
+  return GENERIC_HASHTAGS.has(key);
+}
+
+function isUnsafeHashtag(value) {
+  return isUnsafeTopic(String(value || "").replace(/^#+/, ""));
+}
+
+function isUnsafeTopic(value) {
+  const key = String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
+  return UNSAFE_TERMS.some((term) => key.includes(term));
+}
+
 function shortTopic(value) {
   const cleaned = String(value || "")
     .replace(/[#"`*_]/g, "")
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned || cleaned.length < 5 || cleaned.endsWith(":")) return "Podcast Clip";
-  return cleaned
+  const topic = cleaned
     .replace(/\b(selama|hampir)\s+\d+\s+tahun\b/gi, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 64);
+  return trimTitleEnding(topic) || "Podcast Clip";
+}
+
+function trimTitleEnding(value) {
+  return String(value || "")
+    .replace(/\s+\b(?:yang|dan|atau|di|ke|dari|untuk|dengan|karena|soal|tentang|kalau|tapi|jadi)$/i, "")
+    .replace(/[,:;|-]+$/g, "")
+    .trim();
 }
 
 function normalizeTitle(value) {
-  const cleaned = String(value || "Podcast Clip #Shorts").replace(/\s+/g, " ").trim();
+  const cleaned = String(value || "Podcast Clip").replace(/\s+/g, " ").trim();
   return cleaned.slice(0, 100);
 }
 
@@ -585,7 +584,9 @@ function normalizeDescription(value) {
 
 function normalizeTags(tags) {
   const values = Array.isArray(tags) ? tags : [];
-  const normalized = values.map((tag) => String(tag).trim()).filter(Boolean);
+  const normalized = values
+    .map((tag) => String(tag).trim())
+    .filter((tag) => tag && !isUnsafeTopic(tag));
   return [...new Set(normalized)].slice(0, 15);
 }
 
@@ -623,3 +624,44 @@ function wrapGoogleError(error, prefix) {
   }
   return wrapped;
 }
+
+const GENERIC_HASHTAGS = new Set([
+  "podcast",
+  "podcastindonesia",
+  "podcastartis",
+  "reels",
+  "reelsindonesia",
+  "short",
+  "shorts",
+  "shortsindonesia",
+  "fyp",
+  "foryou",
+  "viral",
+  "trending",
+  "kontenviral",
+  "clip",
+  "klip",
+  "video",
+  "indonesia"
+]);
+
+const UNSAFE_TERMS = [
+  "judi",
+  "judionline",
+  "slot",
+  "togel",
+  "casino",
+  "taruhan",
+  "betting",
+  "sara",
+  "rasis",
+  "porn",
+  "porno",
+  "narkoba",
+  "ganja",
+  "sabu",
+  "bokep",
+  "senjata",
+  "bom",
+  "teroris"
+];

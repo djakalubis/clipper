@@ -71,7 +71,7 @@ export async function runClipper({ video, job, onLog = () => {} }) {
     SUBTITLE_FONT_FAMILY: String(video.subtitle_font || process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
     SUBTITLE_FONT_SIZE: String(video.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || 56),
     SUBTITLE_MARGIN_V: String(subtitleMarginV),
-    SUBTITLE_MARGIN_H: String(video.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 180),
+    SUBTITLE_MARGIN_H: String(video.subtitle_margin_h || process.env.SUBTITLE_MARGIN_H || 80),
     SUBTITLE_WORD_HIGHLIGHT_ENABLED: useSubtitleHighlight ? "1" : "0",
     SUBTITLE_EMOJI_POPUP_ENABLED: useEmojiPopup ? "1" : "0",
     SCENE_MODE: sceneMode,

@@ -56,6 +56,9 @@ export async function generateCaption({ job, output, promptTemplate, clipperRoot
     "- Gunakan kata sapaan seperti kamu/kita secukupnya.",
     "- Hindari kalimat template kaku seperti 'Dalam video ini', 'Potongan ini', atau 'Video ini membahas'.",
     "- Ringkas, natural, emosional, dan tetap sesuai transkrip. Boleh pakai emoji, tapi jangan berlebihan.",
+    "- Kalau ada nama tokoh/artis/narasumber, sebutkan namanya secara natural di hook atau isi caption.",
+    "- Hindari kata/hashtag yang rawan dibatasi platform: judi, slot, togel, taruhan, SARA, ujaran kebencian, pornografi, narkoba, atau kekerasan ekstrem.",
+    "- Jangan pakai hashtag generik seperti #PodcastIndonesia, #ReelsIndonesia, #Shorts, #FYP, #Viral.",
     "- Jangan mengarang fakta di luar konteks.",
     "- Caption harus selesai utuh. Jangan akhiri dengan kalimat terpotong, koma, titik dua, kata sambung, atau ellipsis.",
     "- Jangan menyalin mentah transkrip yang terpotong; rangkum jadi kalimat lengkap.",
@@ -64,7 +67,7 @@ export async function generateCaption({ job, output, promptTemplate, clipperRoot
     `Tema: ${job.theme}`,
     `Gaya: ${promptTemplate?.caption_style || promptTemplate?.hook_style || "natural, conversational, audience-first"}`,
     `CTA: ${promptTemplate?.cta || "Menurut kamu bagaimana?"}`,
-    `Base hashtag: ${BASE_HASHTAGS.join(" ")}`,
+    `Arah hashtag aman jika konteks minim: ${BASE_HASHTAGS.join(" ")}`,
     `Arah hashtag dari konteks: ${dynamicHashtags.join(" ") || "-"}`,
     "",
     "Konteks clip:",
@@ -126,13 +129,13 @@ export async function generateFrameQuoteText({ job, output, promptTemplate, aiPr
 }
 
 function fallbackCaption(output, promptTemplate, dynamicHashtags = []) {
-  const hookSource = output.hook || output.selectedAngle || output.title || "Ada bagian menarik dari obrolan ini";
+  const hookSource = output.hook || output.selectedAngle || output.title || "Sikap ini bikin banyak orang ikut mikir";
   const hook = asQuestionOrSentence(hookSource);
   const body = completeSentence(
     output.reason
     || output.selectedAngle
     || output.caption
-    || "Topik ini terasa dekat karena obrolannya menyentuh hal yang sering kita lihat sehari-hari."
+    || "Ada pilihan, tekanan, dan sudut pandang yang terasa dekat dengan keseharian kita."
   );
   const cta = completeSentence(promptTemplate?.cta || "Menurut kamu, bagian paling relate yang mana?");
   const tags = captionHashtags({ dynamicHashtags, output, promptTemplate }).join(" ");
@@ -185,25 +188,25 @@ function isStrongFrameQuote(value) {
 }
 
 function ensureCaptionHashtags(caption, output, promptTemplate, dynamicHashtags = [], fallback = "") {
-  const cleaned = String(caption || "").trim();
+  const cleaned = sanitizeCaptionText(String(caption || "").trim());
   const hashtags = captionHashtags({ caption: cleaned, dynamicHashtags, output, promptTemplate });
   if (!hashtags.length) return cleaned;
-  const body = formatSocialCaptionBody(stripHashtags(cleaned), stripHashtags(fallback), promptTemplate);
+  const body = formatSocialCaptionBody(stripHashtags(cleaned), stripHashtags(fallback), promptTemplate, output);
   return fitCaptionWithHashtags(body || cleaned, hashtags);
 }
 
-function formatSocialCaptionBody(value, fallback = "", promptTemplate = {}) {
+function formatSocialCaptionBody(value, fallback = "", promptTemplate = {}, output = {}) {
   const completed = completeCaptionBody(value, fallback);
-  const source = normalizeCaptionBody(completed || fallback);
-  const fallbackSource = normalizeCaptionBody(fallback);
-  if (!source && !fallbackSource) return "Ada momen menarik dari obrolan ini.";
+  const source = sanitizeCaptionText(completed || fallback);
+  const fallbackSource = sanitizeCaptionText(fallback);
+  if (!source && !fallbackSource) return "Sikap ini bikin banyak orang ikut mikir.";
 
   const paragraphs = splitCaptionParagraphs(source || fallbackSource);
   const sentences = splitCaptionSentences(source || fallbackSource);
   const fallbackSentences = splitCaptionSentences(fallbackSource);
 
   const hook = tightenCaptionLine(
-    paragraphs[0] || sentences[0] || "Ada momen menarik dari obrolan ini.",
+    paragraphs[0] || sentences[0] || "Sikap ini bikin banyak orang ikut mikir.",
     CAPTION_HOOK_MAX_CHARS
   );
 
@@ -213,7 +216,7 @@ function formatSocialCaptionBody(value, fallback = "", promptTemplate = {}) {
     paragraphs.slice(1).join(" ")
   ];
   const detail = tightenCaptionLine(
-    firstMeaningfulCaptionLine(detailCandidates, hook) || "Topiknya dekat dengan hal yang sering kita lihat sehari-hari.",
+    firstMeaningfulCaptionLine(detailCandidates, hook) || "Ada pilihan dan tekanan yang bikin sudut pandangnya terasa dekat.",
     CAPTION_BODY_MAX_CHARS
   );
 
@@ -224,7 +227,7 @@ function formatSocialCaptionBody(value, fallback = "", promptTemplate = {}) {
     CAPTION_CTA_MAX_CHARS
   );
 
-  return dedupeCaptionBlocks([hook, detail, cta]).join("\n\n");
+  return ensurePrimaryNameInCaption(dedupeCaptionBlocks([hook, detail, cta]).join("\n\n"), output);
 }
 
 function fitCaptionWithHashtags(body, hashtags) {
@@ -338,7 +341,7 @@ function completeCaptionBody(value, fallback = "") {
   const fallbackCleaned = normalizeCaptionBody(fallback);
   if (isCompleteCaption(fallbackCleaned)) return fallbackCleaned;
 
-  return completeSentence(fallbackCleaned || cleaned || "Ada bagian menarik dari obrolan ini.");
+  return completeSentence(fallbackCleaned || cleaned || "Sikap ini bikin banyak orang ikut mikir.");
 }
 
 function normalizeCaptionBody(value) {
@@ -348,6 +351,19 @@ function normalizeCaptionBody(value) {
     .replace(/\n{3,}/g, "\n\n")
     .replace(/\s+([,.!?;:])/g, "$1")
     .trim();
+}
+
+function sanitizeCaptionText(value) {
+  let text = normalizeCaptionBody(value)
+    .replace(/^\s*(?:kenapa\s+ini\s+menarik|poin)\s*:\s*/gim, "")
+    .replace(/\b(?:dalam\s+video\s+ini|potongan\s+ini|video\s+ini\s+membahas)\b/giu, "")
+    .replace(/\b(?:judi\s*online|judi|slot|togel|casino|taruhan|betting)\b/giu, "jalan pintas berisiko")
+    .replace(/\bSARA\b/giu, "isu perbedaan");
+
+  for (const phrase of STIFF_CAPTION_OPENERS) {
+    text = text.replace(phrase, "");
+  }
+  return normalizeCaptionBody(text);
 }
 
 function isCompleteCaption(value) {
@@ -379,20 +395,19 @@ function captionHashtags({ caption = "", dynamicHashtags = [], output, promptTem
   const existingHashtags = normalizeHashtags(extractHashtags(caption));
   const contextHashtags = normalizeHashtags(dynamicHashtags);
   const templateHashtags = normalizeHashtags(promptTemplate?.hashtag_template || []);
-  return mergeHashtags(
-    ["#PodcastIndonesia"],
+  const merged = mergeHashtags(
     contextHashtags,
     outputHashtags,
     existingHashtags,
     templateHashtags,
-    BASE_HASHTAGS.slice(1),
-    ["#Viral"]
-  ).slice(0, HASHTAG_LIMIT);
+    BASE_HASHTAGS
+  ).filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag));
+  return (merged.length ? merged : BASE_HASHTAGS).slice(0, HASHTAG_LIMIT);
 }
 
 function buildDynamicHashtags({ job, output, context = "" }) {
   const provided = normalizeHashtags(output?.hashtags || [])
-    .filter((tag) => !isGenericHashtag(tag));
+    .filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag));
   if (provided.length >= 1) return provided.slice(0, HASHTAG_LIMIT);
 
   const directFields = [
@@ -416,9 +431,10 @@ function buildDynamicHashtags({ job, output, context = "" }) {
 
   for (const keyword of topKeywords(source, 12)) addHashtagCandidate(candidates, keyword);
 
-  return normalizeHashtags(candidates)
-    .filter((tag) => !isGenericHashtag(tag))
+  const dynamic = normalizeHashtags(candidates)
+    .filter((tag) => !isGenericHashtag(tag) && !isUnsafeHashtag(tag))
     .slice(0, HASHTAG_LIMIT);
+  return dynamic.length ? dynamic : BASE_HASHTAGS.slice(0, HASHTAG_LIMIT);
 }
 
 function addHashtagCandidate(candidates, value) {
@@ -481,7 +497,7 @@ function meaningfulTokens(value) {
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
     .map((token) => token.trim())
-    .filter((token) => token.length >= 3 && !STOPWORDS.has(token));
+    .filter((token) => token.length >= 3 && !STOPWORDS.has(token) && !isUnsafeHashtagToken(token));
 }
 
 function toHashtag(value) {
@@ -491,7 +507,7 @@ function toHashtag(value) {
   if (!words.length) return "";
   const tag = words.map(capitalizeTagPart).join("");
   if (tag.length < 3 || tag.length > 36) return "";
-  return `#${tag}`;
+  return sanitizeHashtag(`#${tag}`);
 }
 
 function capitalizeTagPart(value) {
@@ -533,27 +549,85 @@ function isGenericHashtag(value) {
   return GENERIC_HASHTAGS.has(key);
 }
 
+function isUnsafeHashtag(value) {
+  const key = String(value || "")
+    .replace(/^#+/, "")
+    .toLowerCase();
+  return isUnsafeHashtagToken(key);
+}
+
+function isUnsafeHashtagToken(value) {
+  const key = String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
+  if (!key) return false;
+  return UNSAFE_HASHTAG_TERMS.some((term) => key.includes(term));
+}
+
+function sanitizeHashtag(value) {
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/^#+/, "")
+    .replace(/[^\p{L}\p{N}_]/gu, "");
+  if (!cleaned) return "";
+  const tag = `#${cleaned}`;
+  if (isGenericHashtag(tag) || isUnsafeHashtag(tag)) return "";
+  return tag;
+}
+
 function normalizeHashtags(value) {
   const rawItems = Array.isArray(value)
     ? value
-    : String(value || "#PodcastIndonesia #ReelsIndonesia")
+    : String(value || "")
       .split(/[\s,]+/);
 
   const seen = new Set();
   const tags = [];
   for (const item of rawItems) {
-    const cleaned = String(item || "")
-      .trim()
-      .replace(/^#+/, "")
-      .replace(/[^\p{L}\p{N}_]/gu, "");
-    if (!cleaned) continue;
-    const tag = `#${cleaned}`;
+    const tag = sanitizeHashtag(item);
+    if (!tag) continue;
     const key = tag.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     tags.push(tag);
   }
   return tags.slice(0, 8);
+}
+
+function primaryCaptionName(output = {}) {
+  const source = [
+    output?.title,
+    output?.hook,
+    output?.selectedAngle,
+    output?.caption,
+    output?.clipTranscript
+  ].filter(Boolean).join(" ");
+  const known = [
+    "Ahmad Dhani",
+    "Ariel NOAH",
+    "Ayu Ting Ting",
+    "Deddy Corbuzier",
+    "Raditya Dika",
+    "Yusuf Hamka",
+    "Vidi Aldiano",
+    "Vincent",
+    "Desta"
+  ];
+  const foundKnown = known.find((name) => new RegExp(`\\b${name.replace(/\s+/g, "\\s+")}\\b`, "i").test(source));
+  if (foundKnown) return foundKnown;
+  return namedPhrases(source).find((name) => !isGenericHashtag(name) && !isUnsafeHashtag(name)) || "";
+}
+
+function ensurePrimaryNameInCaption(body, output = {}) {
+  const name = primaryCaptionName(output);
+  if (!name) return body;
+  if (normalizeCaptionBody(body).toLowerCase().includes(name.toLowerCase())) return body;
+  const blocks = splitCaptionParagraphs(body);
+  if (!blocks.length) return body;
+  blocks[0] = tightenCaptionLine(`${name} punya sudut pandang yang bikin kepikiran.`, CAPTION_HOOK_MAX_CHARS);
+  return dedupeCaptionBlocks(blocks).join("\n\n");
 }
 
 const GENERIC_HASHTAGS = new Set([
@@ -578,9 +652,43 @@ const GENERIC_HASHTAGS = new Set([
 ]);
 
 const BASE_HASHTAGS = [
-  "#PodcastIndonesia",
-  "#PodcastArtis",
-  "#ReelsIndonesia"
+  "#CeritaHidup",
+  "#SudutPandang",
+  "#RuangCerita"
+];
+
+const STIFF_CAPTION_OPENERS = [
+  /^\s*obrolan\s+ini\s*/giu,
+  /^\s*caption\s*:\s*/giu,
+  /^\s*hook\s*:\s*/giu,
+  /^\s*isi\s*:\s*/giu
+];
+
+const UNSAFE_HASHTAG_TERMS = [
+  "judi",
+  "judionline",
+  "slot",
+  "togel",
+  "casino",
+  "taruhan",
+  "betting",
+  "sara",
+  "rasis",
+  "porn",
+  "porno",
+  "narkoba",
+  "ganja",
+  "sabu",
+  "bokep",
+  "senjata",
+  "bom",
+  "teroris",
+  "islam",
+  "kristen",
+  "katolik",
+  "hindu",
+  "buddha",
+  "yahudi"
 ];
 
 const HASHTAG_LIMIT = 3;
