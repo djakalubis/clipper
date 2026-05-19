@@ -86,13 +86,14 @@ async function uploadFromVerified(client, localPath, remoteName, remoteDir) {
 class SftpRemoteClient {
   constructor(client) {
     this.client = client;
-    this.cwd = "/";
+    this.cwd = ".";
   }
 
   resolve(remotePath = ".") {
     const target = String(remotePath || ".");
     if (target === ".") return this.cwd;
-    return path.posix.isAbsolute(target) ? target : path.posix.join(this.cwd, target);
+    if (path.posix.isAbsolute(target)) return target;
+    return this.cwd === "." ? target : path.posix.join(this.cwd, target);
   }
 
   async ensureDir(remoteDir) {
