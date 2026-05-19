@@ -46,7 +46,7 @@ export async function runClipper({ video, job, onLog = () => {} }) {
   }
 
   const quality = qualityPreset(video.quality_profile);
-  const sceneMode = String(video.scene_mode || process.env.SCENE_MODE || process.env.SMART_CROP_MODE || "podcast");
+  const sceneMode = String(video.scene_mode || process.env.SCENE_MODE || process.env.SMART_CROP_MODE || "solo");
   const clipCount = String(video.clip_count || process.env.CLIP_COUNT || config.clipper.clipCount);
   const useSubtitleHighlight = boolInput(
     video.use_subtitle_highlight ?? job.use_subtitle_highlight,

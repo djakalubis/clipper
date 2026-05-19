@@ -171,13 +171,13 @@ export async function runWorkflow(options = {}) {
 async function createManualSelection(options) {
   const video = await addVideo({
     url: options.url,
-    theme: options.theme && options.theme !== "auto" ? options.theme : "podcast artis",
+    theme: options.theme && options.theme !== "auto" ? options.theme : "ceramah",
     target_date: todayDate(),
     priority: 0,
     manual_range: options.range || "",
     quality_profile: options.qualityProfile || "standard",
     clip_count: Number(options.clipCount || process.env.CLIP_COUNT || 1),
-    scene_mode: options.sceneMode || "podcast",
+    scene_mode: options.sceneMode || "solo",
     subtitle_font: options.subtitleFont || "Segoe UI Semibold",
     subtitle_font_size: options.subtitleFontSize || 56,
     subtitle_margin_v: options.subtitleMarginV || 550,

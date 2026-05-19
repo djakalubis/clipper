@@ -3,8 +3,8 @@ $code = isset($_GET['code']) ? trim($_GET['code']) : '';
 $state = isset($_GET['state']) ? trim($_GET['state']) : '';
 $error = isset($_GET['error']) ? trim($_GET['error']) : '';
 $errorDescription = isset($_GET['error_description']) ? trim($_GET['error_description']) : '';
-$redirectUri = 'https://clipper.emsa.pro/auth/tiktok/callback.php';
-$dashboardUrl = 'https://clipper.emsa.pro/login-tiktok.php';
+$redirectUri = 'https://skipbyte.id/auth/tiktok/callback.php';
+$dashboardUrl = 'https://skipbyte.id/login-tiktok.php';
 $continueUrl = $code
   ? $dashboardUrl . '?tiktok_code=' . rawurlencode($code) . ($state ? '&tiktok_state=' . rawurlencode($state) : '')
   : $dashboardUrl;

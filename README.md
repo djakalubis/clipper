@@ -60,7 +60,7 @@ Contoh niche:
 
 ```txt
 podcast
-podcast artis
+ceramah
 podcast bisnis
 podcast motivasi
 podcast inspiratif
@@ -408,7 +408,7 @@ Contoh data:
 ```json
 {
   "id": "theme_podcast_artis",
-  "name": "podcast artis",
+  "name": "ceramah",
   "status": "active",
   "language": "id",
   "caption_style": "natural, emotional, hook-driven",
@@ -443,7 +443,7 @@ Contoh data:
   "source_type": "youtube_video",
   "url": "https://www.youtube.com/watch?v=xxxx",
   "youtube_video_id": "xxxx",
-  "theme": "podcast artis",
+  "theme": "ceramah",
   "priority": 1,
   "target_date": "2026-05-01",
   "active": true,
@@ -492,7 +492,7 @@ Contoh data:
   "type": "channel",
   "name": "Nama Channel Podcast",
   "url": "https://www.youtube.com/@contohchannel",
-  "theme": "podcast artis",
+  "theme": "ceramah",
   "priority": 1,
   "active": false,
   "notes": "Opsional, bukan input utama MVP"
@@ -529,7 +529,7 @@ Contoh data:
   "job_id": "JOB-20260501-0500-001",
   "video_id": "video_001",
   "source_url": "https://www.youtube.com/watch?v=xxxx",
-  "theme": "podcast artis",
+  "theme": "ceramah",
   "status": "clipper_processing",
   "created_at": "2026-05-01T05:00:00+07:00"
 }
@@ -554,7 +554,7 @@ Contoh data:
 ```json
 {
   "id": "caption_podcast_artis",
-  "theme": "podcast artis",
+  "theme": "ceramah",
   "hook_style": "emotional curiosity",
   "language": "id",
   "cta": "Menurut kamu, bagian paling relate yang mana?",
@@ -821,12 +821,12 @@ VIDEO_FRAME_ENABLED=true
 VIDEO_FILTER_ENABLED=true
 VIDEO_WATERMARK_ENABLED=true
 VIDEO_LOWER_THIRD_ENABLED=true
-VIDEO_LOWER_THIRD_BRAND=@PodFlask | Podcast Highlight
+VIDEO_LOWER_THIRD_BRAND=@Skipbyte | Ceramah Singkat
 VIDEO_FRAME_ASSET=assets/branding/frame-1080x1920.png
 VIDEO_WATERMARK_ASSET=assets/branding/logo.png
 VIDEO_EFFECT_CRF=27
 VIDEO_EFFECT_PRESET=veryfast
-THUMBNAIL_PILL_TEXT=Podcast | Highlight | Viral
+THUMBNAIL_PILL_TEXT=Ceramah | Hikmah | Pengingat
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
 MAX_SCHEDULED_POSTS_PER_DAY=0
@@ -847,7 +847,7 @@ AUTO_DASHBOARD_ALLOW_REMOTE=false
 
 POST_CRON=0 8,13,19 * * *
 DEFAULT_THEME=auto
-AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|podcast artis indonesia hari ini|podcast artis indonesia terbaru|podcast artis indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru
+AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|ceramah indonesia hari ini|ceramah indonesia terbaru|ceramah indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru
 AUTO_DISCOVER_DAILY_QUERY=podcast musisi indonesia viral hari ini
 AUTO_DISCOVER_TRENDING_CATEGORY_IDS=24,22,10
 AUTO_DISCOVER_CHANNEL_HANDLES=@corbuzier|@VINDES|@radityadika|@DanielManantaNetwork|@HASCreative|@podkesmas|@podhub|@Kasisolusi
@@ -951,7 +951,7 @@ Default global untuk quote rapi di area kosong bawah frame. Default: `true`.
 
 #### `VIDEO_LOWER_THIRD_BRAND`
 
-Teks kecil di bawah quote lower-third. Default: `@PodFlask | Podcast Highlight`.
+Teks kecil di bawah quote lower-third. Default: `@Skipbyte | Ceramah Singkat`.
 
 #### `VIDEO_FRAME_ASSET`
 
@@ -963,7 +963,7 @@ Path logo watermark. Default: `assets/branding/logo.png`.
 
 #### `THUMBNAIL_PILL_TEXT`
 
-Label kecil di bawah panel judul thumbnail. Default: `Podcast | Highlight | Viral`.
+Label kecil di bawah panel judul thumbnail. Default: `Ceramah | Hikmah | Pengingat`.
 
 #### `THUMBNAIL_INTRO_ENABLED`
 
@@ -1155,7 +1155,7 @@ Credential YouTube Data API untuk upload video.
 
 Workflow `YouTube Token Maintenance` mengecek token ini setiap hari dengan menukar refresh token menjadi access token baru. Kalau check gagal, GitHub Actions akan merah supaya token bisa dibuat ulang sebelum jadwal produksi terganggu. Untuk token jangka panjang, pastikan OAuth consent screen Google Cloud sudah berstatus `In production`; status `Testing` dapat membuat refresh token kedaluwarsa setelah 7 hari.
 
-Dashboard menyediakan tombol `Reconnect YouTube`. Tombol ini membuka OAuth Google dengan `access_type=offline` dan `prompt=consent`, lalu callback `/api/youtube/callback` menukar `code` menjadi refresh token baru. Tambahkan redirect URI yang ditampilkan dashboard ke Google Cloud OAuth Client, misalnya `https://dashboard.emsa.pro/api/youtube/callback`. Jika `GH_REPO_SECRET_TOKEN` tersedia, refresh token baru otomatis disimpan ke GitHub Secret `YOUTUBE_REFRESH_TOKEN`.
+Dashboard menyediakan tombol `Reconnect YouTube`. Tombol ini membuka OAuth Google dengan `access_type=offline` dan `prompt=consent`, lalu callback `/api/youtube/callback` menukar `code` menjadi refresh token baru. Tambahkan redirect URI yang ditampilkan dashboard ke Google Cloud OAuth Client, misalnya `https://skipbyte.id/api/youtube/callback`. Jika `GH_REPO_SECRET_TOKEN` tersedia, refresh token baru otomatis disimpan ke GitHub Secret `YOUTUBE_REFRESH_TOKEN`.
 
 #### `YOUTUBE_REDIRECT_URI`
 
@@ -1534,7 +1534,7 @@ Metadata minimal:
   "source_url": "https://www.youtube.com/watch?v=xxxx",
   "youtube_video_id": "xxxx",
   "source_title": "Judul Video",
-  "theme": "podcast artis",
+  "theme": "ceramah",
   "status": "done",
   "finalPath": "output/JOB-20260501-0500-001.mp4",
   "transcriptPath": "output/JOB-20260501-0500-001.txt",

@@ -542,7 +542,7 @@ app.patch("/api/themes/:id", async (req, res) => {
 app.post("/api/prompts", async (req, res) => {
   const item = {
     id: req.body.id || makeId("prompt"),
-    theme: req.body.theme || "podcast artis",
+    theme: req.body.theme || "ceramah",
     hook_style: req.body.hook_style || "emotional curiosity",
     language: req.body.language || "id",
     cta: req.body.cta || "Menurut kamu bagaimana?",
@@ -589,7 +589,7 @@ app.post("/api/run", async (req, res) => {
     theme: body.theme || config.defaultTheme,
     url: body.url || "",
     range: body.range || "",
-    sceneMode: body.scene_mode || "podcast",
+    sceneMode: body.scene_mode || "solo",
     clipCount: Number(body.clip_count || process.env.CLIP_COUNT || 1),
     aiProvider: "openai",
     qualityProfile: body.quality_profile || "standard",

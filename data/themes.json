@@ -1,10 +1,10 @@
 [
   {
-    "id": "theme_podcast_artis",
-    "name": "podcast artis",
+    "id": "theme_ceramah",
+    "name": "ceramah",
     "status": "active",
     "language": "id",
-    "caption_style": "natural, conversational, interaktif dengan pemirsa, membahas topik video secara spesifik",
+    "caption_style": "tenang, reflektif, mudah dipahami, mengambil hikmah utama dari ceramah",
     "post_per_day": 1,
     "created_at": "2026-04-30T00:00:00+07:00"
   }

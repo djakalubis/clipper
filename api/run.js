@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       ai_provider: "openai",
       quality_profile: clean(body.quality_profile || "standard"),
       deepgram_enabled: "1",
-      scene_mode: clean(body.scene_mode || process.env.SCENE_MODE || "podcast"),
+      scene_mode: clean(body.scene_mode || process.env.SCENE_MODE || "solo"),
       clip_count: clean(body.clip_count || process.env.CLIP_COUNT || "1"),
       subtitle_font: clean(body.subtitle_font || process.env.SUBTITLE_FONT_FAMILY || "Segoe UI Semibold"),
       subtitle_font_size: clean(body.subtitle_font_size || process.env.SUBTITLE_FONT_SIZE || "56"),

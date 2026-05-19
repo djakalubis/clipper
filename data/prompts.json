@@ -1,12 +1,12 @@
 [
   {
-    "id": "caption_podcast_artis",
-    "theme": "podcast artis",
-    "hook_style": "emotional curiosity",
-    "caption_style": "natural, conversational, interaktif dengan pemirsa, membahas topik video secara spesifik",
+    "id": "caption_ceramah",
+    "theme": "ceramah",
+    "hook_style": "hikmah singkat yang menyentuh",
+    "caption_style": "tenang, reflektif, mudah dipahami, mengambil pelajaran praktis dari isi ceramah",
     "language": "id",
-    "cta": "Menurut kamu, bagian paling relate yang mana?",
-    "hashtag_template": "#CeritaHidup #SudutPandang #RuangCerita",
+    "cta": "Semoga jadi pengingat baik hari ini.",
+    "hashtag_template": "#CeramahSingkat #KajianIslam #PengingatDiri",
     "thumbnail_style": "3 sampai 7 kata, kuat, mudah dibaca di HP"
   }
 ]

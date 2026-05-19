@@ -773,10 +773,10 @@ els.videoForm?.addEventListener("submit", async (event) => {
     Object.assign(payload, readEffectOptions(els.videoForm));
     await api("/api/videos", { method: "POST", body: JSON.stringify(payload) });
     els.videoForm.reset();
-    els.videoForm.elements.theme.value = "podcast artis";
+    els.videoForm.elements.theme.value = "ceramah";
     els.videoForm.elements.priority.value = "1";
     els.videoForm.elements.quality_profile.value = "standard";
-    if (els.videoForm.elements.scene_mode) els.videoForm.elements.scene_mode.value = "podcast";
+    if (els.videoForm.elements.scene_mode) els.videoForm.elements.scene_mode.value = "solo";
     if (els.videoForm.elements.clip_count) els.videoForm.elements.clip_count.value = "1";
     resetEffectOptions(els.videoForm);
     await refresh();

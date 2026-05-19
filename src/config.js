@@ -17,7 +17,7 @@ function cleanBaseUrl(value) {
 }
 
 function cleanBrandText(value) {
-  return cleanText(value).replace(/@(?:emsa\.pro|clipperemsapro)\b/gi, "@PodFlask");
+  return cleanText(value).replace(/@(?:emsa\.pro|clipperemsapro)\b/gi, "@Skipbyte");
 }
 
 function boolEnv(name, fallback = false) {
@@ -106,7 +106,7 @@ function buildConfig() {
       filterEnabled: boolEnv("VIDEO_FILTER_ENABLED", true),
       watermarkEnabled: boolEnv("VIDEO_WATERMARK_ENABLED", true),
       lowerThirdEnabled: boolEnv("VIDEO_LOWER_THIRD_ENABLED", true),
-      lowerThirdBrand: cleanBrandText(process.env.VIDEO_LOWER_THIRD_BRAND || "@PodFlask | Podcast Highlight"),
+      lowerThirdBrand: cleanBrandText(process.env.VIDEO_LOWER_THIRD_BRAND || "@Skipbyte | Ceramah Singkat"),
       frameAssetPath: path.resolve(rootDir, cleanText(process.env.VIDEO_FRAME_ASSET || "assets/branding/frame-1080x1920.png")),
       watermarkAssetPath: path.resolve(rootDir, cleanText(process.env.VIDEO_WATERMARK_ASSET || "assets/branding/logo.png")),
       crf: numberEnv("VIDEO_EFFECT_CRF", numberEnv("FINAL_RENDER_CRF", 27)),

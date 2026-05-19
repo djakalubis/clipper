@@ -12,61 +12,48 @@ import { getYoutubeAccessToken } from "./youtube-publisher.js";
 import { clearYoutubeQuotaExceeded, markYoutubeQuotaExceeded, youtubeQuotaCooldown } from "./youtube-quota.js";
 
 const DEFAULT_QUERIES = [
-  "podcast indonesia hari ini",
-  "podcast indonesia viral hari ini",
-  "podcast artis indonesia hari ini",
-  "podcast artis indonesia terbaru",
-  "podcast artis indonesia viral",
-  "podcast musisi indonesia terbaru",
-  "podcast musisi indonesia viral",
-  "podcast musisi indonesia hari ini",
-  "podcast ariel noah terbaru",
-  "podcast ahmad dhani terbaru",
-  "podcast ari lasso terbaru",
-  "podcast penyanyi indonesia terbaru",
-  "podcast band indonesia terbaru",
-  "podcast deddy corbuzier terbaru",
-  "podcast vindes terbaru"
+  "ceramah singkat terbaru",
+  "ceramah islam terbaru hari ini",
+  "kajian islam terbaru",
+  "ustadz adi hidayat terbaru",
+  "ustadz abdul somad terbaru",
+  "ustadz khalid basalamah terbaru",
+  "ustadz hanan attaki terbaru",
+  "ceramah ramadhan terbaru",
+  "ceramah tentang sabar",
+  "ceramah tentang sholat",
+  "ceramah tentang rezeki",
+  "ceramah tentang taubat"
 ];
 
 const FALLBACK_QUERIES = [
-  "podcast indonesia hari ini",
-  "podcast indonesia terbaru",
-  "podcast indonesia viral",
-  "podcast artis indonesia full",
-  "podcast selebriti indonesia terbaru",
-  "podcast musisi viral indonesia",
-  "podcast penyanyi viral indonesia",
-  "podcast band indonesia viral",
-  "ariel noah podcast terbaru",
-  "ahmad dhani podcast terbaru",
-  "ari lasso podcast terbaru",
-  "dewa 19 podcast terbaru",
-  "once mekel podcast terbaru",
-  "judika podcast terbaru",
-  "rossa podcast terbaru",
-  "raisa podcast terbaru",
-  "tulus podcast terbaru",
-  "podcast deddy corbuzier terbaru",
-  "raditya dika podcast terbaru",
-  "podcast vindes terbaru",
-  "komika indonesia podcast terbaru",
-  "podcast komedi indonesia"
+  "ceramah pendek penuh hikmah",
+  "kajian ustadz indonesia terbaru",
+  "ceramah ustadz adi hidayat",
+  "ceramah ustadz abdul somad",
+  "ceramah ustadz khalid basalamah",
+  "ceramah ustadz syafiq riza basalamah",
+  "ceramah buya yahya terbaru",
+  "ceramah gus baha terbaru",
+  "kajian tauhid terbaru",
+  "kajian akhlak terbaru",
+  "nasehat islami terbaru",
+  "motivasi islam terbaru"
 ];
 
 const DEFAULT_CHANNEL_HANDLES = [
-  "@corbuzier",
-  "@VINDES",
-  "@radityadika",
-  "@DanielManantaNetwork",
-  "@HASCreative",
-  "@podkesmas",
-  "@podhub",
-  "@Kasisolusi"
+  "@AdiHidayatOfficial",
+  "@ustadzabdulsomadofficial",
+  "@KhalidBasalamahOfficial",
+  "@SyafiqRizaBasalamahOfficial",
+  "@YufidTV",
+  "@RodjaTV",
+  "@aagymofficial",
+  "@HananAttaki"
 ];
 
-const PODCAST_FORMAT_RE = /podcast|siniar|podhub|podkesmas|close\s*the\s*door|vindes|deddy|corbuzier|raditya|daniel\s*mananta|has\s*creative|kasisolusi|podcast\s*komedi/i;
-const MUSICIAN_TOPIC_RE = /musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*dhani|ari\s*lasso|dewa\s*19|once\s*mekel|judika|rossa|raisa|tulus|maia\s*estianty|anang|melly\s*goeslaw/i;
+const PODCAST_FORMAT_RE = /ceramah|kajian|tausiyah|dakwah|nasehat|nasihat|pengingat|tabligh|khutbah|ustadz|ustaz|ustazah|habib|kyai|kiai|buya|gus\s*baha|adi\s*hidayat|abdul\s*somad|khalid\s*basalamah|syafiq\s*riza|hanan\s*attaki|aagym|aa\s*gym|yufid|rodja/i;
+const MUSICIAN_TOPIC_RE = /islam|muslim|muslimah|quran|alquran|hadits|hadis|tauhid|akhlak|fiqih|fikih|sholat|shalat|salat|doa|dzikir|zikir|taubat|sabar|ikhlas|rezeki|sedekah|ramadhan|puasa|surga|neraka/i;
 const PODCAST_TOPIC_RE = new RegExp(`${PODCAST_FORMAT_RE.source}|${MUSICIAN_TOPIC_RE.source}`, "i");
 const POLITICAL_TOPIC_RE = /politik|pilpres|pemilu|partai|dpr|mpr|presiden|wakil\s*presiden|menteri|kabinet|reshuffle|prabowo|jokowi|gibran|anies|ganjar|bawaslu|kpu|kompastv|kompas\s*tv|inews|cnn\s*indonesia|forum\s*keadilan|akbar\s*faizal|total\s*politik|tempo(?:dotco)?|bocor\s*alus|brin/i;
 const NON_PODCAST_NOISE_RE = /official\s*music\s*video|official\s*audio|video\s*klip|lirik|lyrics|karaoke|konser|live\s*session|trailer|teaser|sinetron|drama|full\s*movie|film\s*pendek|gameplay|live\s*stream\s*game|highlight\s*bola/i;
@@ -293,10 +280,9 @@ function passesDuration(item, options) {
 
 function topicMultiplier(text) {
   const value = String(text || "").toLowerCase();
-  if (/podcast.*artis|artis.*podcast|deddy|corbuzier|vindes|raditya|close\s*the\s*door/.test(value)) return 1.4;
-  if (/musisi|penyanyi|vokalis|\bband\b|ariel|noah|ahmad\s*dhani|ari\s*lasso|dewa\s*19|once\s*mekel|judika|rossa|raisa|tulus/.test(value)) return 1.38;
-  if (/podhub|podkesmas|daniel\s*mananta|has\s*creative|kasisolusi/.test(value)) return 1.28;
-  if (/podcast.*komedi|komedi.*podcast|komika/.test(value)) return 1.1;
+  if (/ceramah|kajian|tausiyah|dakwah|ustadz|ustaz|buya|gus\s*baha|habib/.test(value)) return 1.45;
+  if (/adi\s*hidayat|abdul\s*somad|khalid\s*basalamah|syafiq\s*riza|hanan\s*attaki|aagym|aa\s*gym/.test(value)) return 1.4;
+  if (/tauhid|akhlak|fiqih|sholat|taubat|sabar|ikhlas|rezeki|sedekah|ramadhan/.test(value)) return 1.25;
   return 1;
 }
 
@@ -1146,7 +1132,7 @@ export async function discoverAndQueueVideos(options = {}) {
     regionCode,
     relevanceLanguage
   };
-  const theme = options.theme && options.theme !== "auto" ? options.theme : "podcast artis";
+  const theme = options.theme && options.theme !== "auto" ? options.theme : "ceramah";
 
   const videos = queueMaintenance.videos;
   const history = await readJson("history", []);
@@ -1244,7 +1230,7 @@ const isCli = process.argv[1]
 
 if (isCli) {
   discoverAndQueueVideos({
-    theme: process.env.THEME || "podcast artis",
+    theme: process.env.THEME || "ceramah",
     targetDate: todayDate()
   })
     .then((result) => {

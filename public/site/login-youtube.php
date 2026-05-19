@@ -1,16 +1,16 @@
 <?php
 session_start();
 
-$defaultRedirectUri = 'https://clipper.emsa.pro/auth/youtube/callback.php';
+$defaultRedirectUri = 'https://skipbyte.id/auth/youtube/callback.php';
 $config = [
   'client_id' => getenv('YOUTUBE_CLIENT_ID') ?: '',
   'client_secret' => getenv('YOUTUBE_CLIENT_SECRET') ?: '',
   'redirect_uri' => getenv('YOUTUBE_REDIRECT_URI') ?: $defaultRedirectUri,
   'scope' => getenv('YOUTUBE_AUTH_SCOPE') ?: 'https://www.googleapis.com/auth/youtube.upload',
   'app_name' => 'Clipper Emsa Pro',
-  'homepage' => 'https://clipper.emsa.pro',
-  'privacy_url' => 'https://clipper.emsa.pro/privacy.html',
-  'terms_url' => 'https://clipper.emsa.pro/terms.html',
+  'homepage' => 'https://skipbyte.id',
+  'privacy_url' => 'https://skipbyte.id/privacy.html',
+  'terms_url' => 'https://skipbyte.id/terms.html',
 ];
 
 foreach ([
@@ -612,7 +612,7 @@ try {
             <span class="badge">User flow</span>
           </div>
           <ol>
-            <li>User opens <code>https://clipper.emsa.pro/login-youtube.php</code>.</li>
+            <li>User opens <code>https://skipbyte.id/login-youtube.php</code>.</li>
             <li>User clicks <strong>Connect / Reconnect YouTube</strong>.</li>
             <li>Google shows the app name, OAuth client, and requested YouTube upload permission.</li>
             <li>User grants access and returns to <code><?= e($config['redirect_uri']) ?></code>.</li>

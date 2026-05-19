@@ -3,8 +3,8 @@ $code = isset($_GET['code']) ? trim($_GET['code']) : '';
 $state = isset($_GET['state']) ? trim($_GET['state']) : '';
 $error = isset($_GET['error']) ? trim($_GET['error']) : '';
 $errorDescription = isset($_GET['error_description']) ? trim($_GET['error_description']) : '';
-$redirectUri = 'https://clipper.emsa.pro/auth/youtube/callback.php';
-$dashboardUrl = 'https://clipper.emsa.pro/login-youtube.php';
+$redirectUri = 'https://skipbyte.id/auth/youtube/callback.php';
+$dashboardUrl = 'https://skipbyte.id/login-youtube.php';
 $continueUrl = $code
   ? $dashboardUrl . '?youtube_code=' . rawurlencode($code) . ($state ? '&youtube_state=' . rawurlencode($state) : '')
   : $dashboardUrl;

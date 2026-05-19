@@ -22,8 +22,8 @@ def clean_text(value, fallback=""):
 
 
 def normalize_brand(value):
-    text = clean_text(value, "@PodFlask | Podcast Highlight")
-    return re.sub(r"@(?:emsa\.pro|clipperemsapro)\b", "@PodFlask", text, flags=re.IGNORECASE)
+    text = clean_text(value, "@Skipbyte | Ceramah Singkat")
+    return re.sub(r"@(?:emsa\.pro|clipperemsapro)\b", "@Skipbyte", text, flags=re.IGNORECASE)
 
 
 def clean_title(value):
@@ -253,7 +253,7 @@ def render_thumbnail(args):
         )
         y += height + line_gap
 
-    pill = clean_text(args.pill or os.environ.get("THUMBNAIL_PILL_TEXT"), "Podcast | Highlight | Viral")
+    pill = clean_text(args.pill or os.environ.get("THUMBNAIL_PILL_TEXT"), "Ceramah | Hikmah | Pengingat")
     pill_font = load_font(29)
     pill_w, pill_h = text_size(draw, pill, pill_font, 1)
     pill_rect = (150, 1202, min(930, 150 + pill_w + 42), 1256)

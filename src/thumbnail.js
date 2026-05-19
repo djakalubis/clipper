@@ -59,7 +59,7 @@ export async function generateThumbnail({ job, videoPath, text }) {
       "--input", basePath,
       "--output", outputPath,
       "--title", displayText,
-      "--pill", process.env.THUMBNAIL_PILL_TEXT || "Podcast | Highlight | Viral"
+      "--pill", process.env.THUMBNAIL_PILL_TEXT || "Ceramah | Hikmah | Pengingat"
     ]);
     await fs.rm(basePath, { force: true }).catch(() => {});
     return { path: outputPath, filename, text: displayText };

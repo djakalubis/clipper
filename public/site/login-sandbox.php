@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$defaultRedirectUri = 'https://clipper.emsa.pro/auth/tiktok/callback.php';
+$defaultRedirectUri = 'https://skipbyte.id/auth/tiktok/callback.php';
 $config = [
   'client_key' => getenv('TIKTOK_CLIENT_KEY') ?: '',
   'client_secret' => getenv('TIKTOK_CLIENT_SECRET') ?: '',
@@ -174,7 +174,7 @@ function latest_demo_video() {
 
 function local_video_path($videoUrl) {
   $parts = parse_url($videoUrl);
-  if (($parts['host'] ?? '') !== 'clipper.emsa.pro') return '';
+  if (($parts['host'] ?? '') !== 'skipbyte.id') return '';
   $path = rawurldecode($parts['path'] ?? '');
   if (strpos($path, '/ig-generated/videos/') !== 0) return '';
   $candidate = realpath(__DIR__ . $path);
@@ -387,7 +387,7 @@ if (isset($_GET['published'])) $message = 'Video berhasil dikirim ke TikTok Cont
     </section>
 
     <section class="steps">
-      <div class="step"><span>1</span><strong>Official website</strong><small>clipper.emsa.pro, Privacy Policy, Terms.</small></div>
+      <div class="step"><span>1</span><strong>Official website</strong><small>skipbyte.id, Privacy Policy, Terms.</small></div>
       <div class="step"><span>2</span><strong>Login TikTok</strong><small>User masuk ke dashboard aplikasi.</small></div>
       <div class="step"><span>3</span><strong>Connect TikTok</strong><small>Authorize scope TikTok.</small></div>
       <div class="step"><span>4</span><strong>Publish result</strong><small>Upload video via Content Posting API.</small></div>

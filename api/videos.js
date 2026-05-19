@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         ai_provider: "openai",
         quality_profile: video.quality_profile || "standard",
         deepgram_enabled: "1",
-        scene_mode: video.scene_mode || "podcast",
+        scene_mode: video.scene_mode || "solo",
         clip_count: String(video.clip_count || 1),
         subtitle_font: video.subtitle_font || "Segoe UI Semibold",
         subtitle_font_size: String(video.subtitle_font_size || 56),
