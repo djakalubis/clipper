@@ -93,23 +93,9 @@ on:
         default: "openai"
   schedule:
     # GitHub schedule uses UTC.
-    # Target 15 video/hari, disebar dari pagi sampai malam WIB.
-    # Menit dibuat ganjil agar tidak menabrak jam puncak cron GitHub.
-    - cron: "3 23 * * *"  # 06:03 WIB
-    - cron: "13 0 * * *"  # 07:13 WIB
-    - cron: "23 1 * * *"  # 08:23 WIB
-    - cron: "33 2 * * *"  # 09:33 WIB
-    - cron: "43 3 * * *"  # 10:43 WIB
-    - cron: "53 4 * * *"  # 11:53 WIB
-    - cron: "7 6 * * *"   # 13:07 WIB
-    - cron: "17 7 * * *"  # 14:17 WIB
-    - cron: "27 8 * * *"  # 15:27 WIB
-    - cron: "37 9 * * *"  # 16:37 WIB
-    - cron: "47 10 * * *" # 17:47 WIB
-    - cron: "57 11 * * *" # 18:57 WIB
-    - cron: "9 13 * * *"  # 20:09 WIB
-    - cron: "19 14 * * *" # 21:19 WIB
-    - cron: "29 15 * * *" # 22:29 WIB
+    # Target 2 video/hari: 10:00 WIB dan 17:00 WIB.
+    - cron: "0 3 * * *"   # 10:00 WIB
+    - cron: "0 10 * * *"  # 17:00 WIB
 
 concurrency:
   group: podcast-clipper-automation
