@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import axios from "axios";
 import { config } from "./config.js";
 import { ensureFreshInstagramToken } from "./instagram-token.js";
@@ -356,6 +357,24 @@ async function downloadVideoBuffer(videoUrl) {
   return buffer;
 }
 
+async function readVideoBuffer(videoPath) {
+  if (!videoPath) {
+    throw new Error("videoPath kosong untuk resumable upload.");
+  }
+
+  const buffer = await fs.readFile(videoPath);
+  console.log("Loaded local video for resumable upload:", {
+    file: videoPath,
+    bytes: buffer.length
+  });
+
+  if (!buffer.length) {
+    throw new Error("Video buffer lokal kosong saat resumable upload.");
+  }
+
+  return buffer;
+}
+
 async function createResumableContainer({ caption, coverUrl }) {
   console.log("IG upload method: resumable");
 
@@ -436,10 +455,14 @@ async function uploadVideoToRupload({ uploadUri, videoBuffer }) {
   }
 }
 
-async function publishReelViaResumable({ videoUrl, caption, coverUrl }) {
-  await assertPublicVideoUrl(videoUrl);
-
-  const videoBuffer = await downloadVideoBuffer(videoUrl);
+async function publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl }) {
+  let videoBuffer;
+  if (videoUrl) {
+    await assertPublicVideoUrl(videoUrl);
+    videoBuffer = await downloadVideoBuffer(videoUrl);
+  } else {
+    videoBuffer = await readVideoBuffer(videoPath);
+  }
   const created = await createResumableContainer({ caption, coverUrl });
 
   await uploadVideoToRupload({
@@ -456,11 +479,12 @@ async function publishReelViaResumable({ videoUrl, caption, coverUrl }) {
     containerId: created.id,
     type: "reel_video",
     uploadMethod: "resumable",
-    videoUrl
+    videoUrl,
+    videoPath
   };
 }
 
-export async function publishReel({ videoUrl, caption, coverUrl }) {
+export async function publishReel({ videoUrl, videoPath, caption, coverUrl }) {
   await ensureFreshInstagramToken();
   assertInstagramConfig();
 
@@ -469,9 +493,14 @@ export async function publishReel({ videoUrl, caption, coverUrl }) {
   console.log("IG GRAPH VERSION:", config.graphApiVersion);
   console.log("IG REEL UPLOAD METHOD:", method);
 
+  if (!videoUrl) {
+    console.log("IG public video URL kosong; memakai resumable upload dari file lokal.");
+    return publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl: "" });
+  }
+
   if (method === "resumable") {
     try {
-      return await publishReelViaResumable({ videoUrl, caption, coverUrl });
+      return await publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl });
     } catch (error) {
       if (!isRuploadProcessingFailure(error)) throw error;
       console.log("IG resumable gagal saat rupload. Mencoba fallback video_url.", {
@@ -489,7 +518,7 @@ export async function publishReel({ videoUrl, caption, coverUrl }) {
       console.log("IG video_url gagal dengan 2207076. Mencoba fallback resumable upload.", {
         message: error.message
       });
-      return publishReelViaResumable({ videoUrl, caption, coverUrl });
+      return publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl });
     }
   }
 
@@ -504,6 +533,6 @@ export async function publishReel({ videoUrl, caption, coverUrl }) {
       message: error.message
     });
 
-    return publishReelViaResumable({ videoUrl, caption, coverUrl });
+    return publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl });
   }
 }

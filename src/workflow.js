@@ -887,7 +887,6 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
 
   if (config.facebook.enabled) {
     platformResults.facebook = await publishPlatform("facebook", platformResults, job.job_id, async () => {
-      if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Facebook.");
       await updateJob(job.job_id, { facebook_status: "processing", facebook_error: "" });
       return publishToFacebook({
         videoUrl: upload.videoUrl,
@@ -901,7 +900,6 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
 
   if (config.instagram.enabled) {
     platformResults.instagram = await publishPlatform("instagram", platformResults, job.job_id, async () => {
-      if (!upload.videoUrl) throw new Error("PUBLIC_BASE_URL/SFTP wajib valid sebelum publish Instagram.");
       await updateJob(job.job_id, { instagram_status: "processing", instagram_error: "" });
       const instagramVideo = await prepareInstagramVideo({
         job,
@@ -910,6 +908,7 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
       });
       return publishReel({
         videoUrl: instagramVideo.videoUrl,
+        videoPath: instagramVideo.videoPath,
         caption: socialCaption,
         coverUrl: upload.thumbnailUrl || ""
       });

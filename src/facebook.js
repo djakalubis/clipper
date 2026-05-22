@@ -228,6 +228,7 @@ export async function publishToFacebook({ videoUrl, videoPath, title, descriptio
     try {
       result = await publishFacebookReel({ videoUrl, videoPath, title, description });
     } catch (error) {
+      if (!videoUrl) throw error;
       console.warn(`Facebook Reel gagal, coba upload sebagai Page video: ${error.message}`);
       try {
         const fallback = await publishFacebookVideo({ videoUrl, title, description });
