@@ -100,6 +100,7 @@ function buildConfig() {
     uploadDriver,
     dryRun: boolEnv("DRY_RUN", true),
     autoPublish: boolEnv("AUTO_PUBLISH", false),
+    requiredPublishPlatforms: listEnv("REQUIRED_PUBLISH_PLATFORMS"),
     cleanupLocalAfterPublish: boolEnv("CLEANUP_LOCAL_AFTER_PUBLISH", false),
     videoEffects: {
       frameEnabled: boolEnv("VIDEO_FRAME_ENABLED", true),

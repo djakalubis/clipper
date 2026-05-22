@@ -138,6 +138,7 @@ jobs:
       REMOTE_UPLOAD_REQUIRED: ${{ secrets.REMOTE_UPLOAD_REQUIRED || 'false' }}
       DRY_RUN: "false"
       AUTO_PUBLISH: "true"
+      REQUIRED_PUBLISH_PLATFORMS: ${{ secrets.REQUIRED_PUBLISH_PLATFORMS || 'instagram,facebook' }}
       DEFAULT_THEME: auto
 
       GRAPH_API_VERSION: v25.0
@@ -406,7 +407,8 @@ jobs:
             for key in INSTAGRAM_IG_USER_ID INSTAGRAM_ACCESS_TOKEN
             do
               if [ -z "${!key}" ]; then
-                echo "::warning::$key belum diisi di GitHub Secrets. Instagram akan dilewati; workflow tetap fokus YouTube."
+                echo "::error::$key belum diisi di GitHub Secrets. Instagram wajib terposting untuk run ini."
+                missing=1
               fi
             done
 
@@ -414,7 +416,7 @@ jobs:
               for key in META_APP_ID META_APP_SECRET
               do
                 if [ -z "${!key}" ]; then
-                  echo "::warning::$key belum diisi untuk auto-refresh Instagram. Upload YouTube tetap lanjut."
+                  echo "::warning::$key belum diisi untuk auto-refresh Instagram. Token tidak bisa diperpanjang otomatis."
                 fi
               done
             fi
@@ -422,11 +424,13 @@ jobs:
 
           if [ "$FACEBOOK_UPLOAD_ENABLED" = "true" ]; then
             if [ -z "$FACEBOOK_PAGE_ID" ]; then
-              echo "::warning::FACEBOOK_PAGE_ID belum diisi di GitHub Secrets. Facebook akan dilewati; workflow tetap fokus YouTube."
+              echo "::error::FACEBOOK_PAGE_ID belum diisi di GitHub Secrets. Facebook wajib terposting untuk run ini."
+              missing=1
             fi
 
             if [ -z "$FACEBOOK_PAGE_ACCESS_TOKEN" ] && [ -z "$FACEBOOK_USER_ACCESS_TOKEN" ]; then
-              echo "::warning::FACEBOOK_PAGE_ACCESS_TOKEN atau FACEBOOK_USER_ACCESS_TOKEN belum diisi. Facebook akan dilewati; workflow tetap fokus YouTube."
+              echo "::error::FACEBOOK_PAGE_ACCESS_TOKEN atau FACEBOOK_USER_ACCESS_TOKEN belum diisi. Facebook wajib terposting untuk run ini."
+              missing=1
             fi
           fi
 
@@ -483,8 +487,8 @@ jobs:
             if [ -n "$INSTAGRAM_IG_USER_ID" ] && [ -n "$INSTAGRAM_ACCESS_TOKEN" ]; then
               echo "INSTAGRAM_UPLOAD_ENABLED=true" >> "$GITHUB_ENV"
             else
-              echo "::notice::Instagram credential token belum lengkap; INSTAGRAM_UPLOAD_ENABLED dimatikan untuk run ini."
-              echo "INSTAGRAM_UPLOAD_ENABLED=false" >> "$GITHUB_ENV"
+              echo "::error::Instagram credential token belum lengkap."
+              exit 1
             fi
           else
             echo "INSTAGRAM_UPLOAD_ENABLED=false" >> "$GITHUB_ENV"
@@ -494,8 +498,8 @@ jobs:
             if [ -n "$FACEBOOK_PAGE_ID" ] && { [ -n "$FACEBOOK_PAGE_ACCESS_TOKEN" ] || [ -n "$FACEBOOK_USER_ACCESS_TOKEN" ]; }; then
               echo "FACEBOOK_UPLOAD_ENABLED=true" >> "$GITHUB_ENV"
             else
-              echo "::notice::Facebook credential belum lengkap; FACEBOOK_UPLOAD_ENABLED dimatikan untuk run ini."
-              echo "FACEBOOK_UPLOAD_ENABLED=false" >> "$GITHUB_ENV"
+              echo "::error::Facebook credential belum lengkap."
+              exit 1
             fi
           else
             echo "FACEBOOK_UPLOAD_ENABLED=false" >> "$GITHUB_ENV"

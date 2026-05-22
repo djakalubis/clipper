@@ -81,14 +81,20 @@ jobs:
             exit 0
           fi
 
+          missing=0
           if [ -z "$FACEBOOK_PAGE_ID" ]; then
             echo "::error::FACEBOOK_PAGE_ID belum diisi di GitHub Secrets."
-            exit 1
+            missing=1
           fi
 
           if [ -z "$FACEBOOK_PAGE_ACCESS_TOKEN" ] && [ -z "$FACEBOOK_USER_ACCESS_TOKEN" ]; then
             echo "::error::FACEBOOK_PAGE_ACCESS_TOKEN atau FACEBOOK_USER_ACCESS_TOKEN wajib diisi di GitHub Secrets."
-            exit 1
+            missing=1
+          fi
+
+          if [ "$missing" = "1" ]; then
+            echo "META_TOKEN_MAINTENANCE_FAILED=true" >> "$GITHUB_ENV"
+            exit 0
           fi
 
           args=(--github-env)
@@ -134,14 +140,20 @@ jobs:
             exit 0
           fi
 
+          missing=0
           if [ -z "$INSTAGRAM_IG_USER_ID" ]; then
             echo "::error::INSTAGRAM_IG_USER_ID belum diisi di GitHub Secrets."
-            exit 1
+            missing=1
           fi
 
           if [ -z "$INSTAGRAM_ACCESS_TOKEN" ] && [ -z "$FACEBOOK_PAGE_ACCESS_TOKEN" ] && [ -z "$FACEBOOK_USER_ACCESS_TOKEN" ]; then
             echo "::error::INSTAGRAM_ACCESS_TOKEN atau fallback Facebook token wajib diisi di GitHub Secrets."
-            exit 1
+            missing=1
+          fi
+
+          if [ "$missing" = "1" ]; then
+            echo "META_TOKEN_MAINTENANCE_FAILED=true" >> "$GITHUB_ENV"
+            exit 0
           fi
 
           args=(--github-env)

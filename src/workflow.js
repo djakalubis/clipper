@@ -401,6 +401,7 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       successful_clip_count: final.successfulClips,
       failed_clip_count: final.failedClips,
       published_clip_count: final.publishedClips,
+      required_publish_failures: final.requiredPublishFailures || [],
       clip_results: clipResults.map(summarizeClipResult),
       final_video_path: firstSuccess?.output?.finalAbsPath || "",
       original_final_video_path: firstSuccess?.output?.originalFinalAbsPath || "",
@@ -436,6 +437,10 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       published_clip_count: final.publishedClips
     });
 
+    if (final.requiredPublishFailures?.length) {
+      throw new Error(`Platform wajib gagal publish: ${final.requiredPublishFailures.join("; ")}`);
+    }
+
     return {
       status: final.publishStatus,
       job_id: job.job_id,
@@ -443,6 +448,7 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
       successful_clip_count: final.successfulClips,
       failed_clip_count: final.failedClips,
       published_clip_count: final.publishedClips,
+      required_publish_failures: final.requiredPublishFailures || [],
       clips: clipResults.map(summarizeClipResult)
     };
   } catch (error) {
@@ -594,12 +600,14 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       upload,
       thumbnail
     });
-    const primaryPublished = platformResults.hasAnySuccess;
+    const requiredPublishFailures = requiredPublishFailuresFor(platformResults);
+    const requiredPublishFailed = requiredPublishFailures.length > 0;
+    const primaryPublished = platformResults.hasAnySuccess && !requiredPublishFailed;
     const youtubeQuotaExceeded = Boolean(platformResults.quotaExceeded?.youtube);
     const deferredByQuota = youtubeQuotaExceeded && !primaryPublished;
     const publishStatus = primaryPublished
       ? platformResults.hasErrors ? "published_with_warnings" : "published"
-      : deferredByQuota ? "queued" : "publish_failed";
+      : requiredPublishFailed ? "publish_failed" : deferredByQuota ? "queued" : "publish_failed";
     const now = new Date().toISOString();
 
     await updateJob(job.job_id, {
@@ -627,6 +635,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       youtube_error: platformResults.errors.youtube || "",
       youtube_custom_thumbnail: platformResults.youtube?.customThumbnail === true,
       youtube_thumbnail_error: platformResults.youtube?.thumbnailError || "",
+      required_publish_failures: requiredPublishFailures,
       youtube_published_at: platformResults.youtube ? now : "",
       published_at: primaryPublished ? now : ""
     });
@@ -638,6 +647,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       output,
       upload,
       platformResults,
+      requiredPublishFailures,
       status: primaryPublished ? "published" : publishStatus,
       clipIndex,
       clipTotal: total
@@ -651,6 +661,7 @@ async function processClipOutput({ job, video, theme, prompt, output, clipperRes
       upload,
       caption,
       platformResults,
+      requiredPublishFailures,
       primaryPublished,
       publishStatus
     };
@@ -702,6 +713,7 @@ function summarizeClipResult(result) {
     tiktok_publish_id: result.platformResults?.tiktok?.publishId || "",
     threads_status: platformResults ? platformPublishStatus(platformResults, "threads", config.threads.enabled) : "",
     threads_media_id: result.platformResults?.threads?.mediaId || "",
+    required_publish_failures: result.requiredPublishFailures || [],
     final_video_path: result.output?.finalAbsPath || "",
     original_final_video_path: result.output?.originalFinalAbsPath || "",
     video_effects: result.output?.videoEffects || null,
@@ -723,6 +735,7 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
   const publishedClips = clipResults.filter((item) => item.primaryPublished).length;
   const hasPlatformErrors = clipResults.some((item) => item.platformResults?.hasErrors);
   const hasYoutubeQuotaExceeded = clipResults.some((item) => item.platformResults?.quotaExceeded?.youtube);
+  const requiredPublishFailures = clipResults.flatMap((item) => item.requiredPublishFailures || []);
   const total = clipResults.length;
 
   if (!publishEnabled) {
@@ -747,7 +760,22 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
       successfulClips,
       failedClips,
       publishedClips,
+      requiredPublishFailures,
       errorMessage: hasPlatformErrors ? "Semua clip berhasil publish, tapi ada platform yang gagal atau tertunda." : ""
+    };
+  }
+
+  if (requiredPublishFailures.length) {
+    return {
+      status: "ready_to_publish",
+      publishStatus: "publish_failed",
+      videoStatus: "ready_to_publish",
+      event: "required_publish_failed",
+      successfulClips,
+      failedClips,
+      publishedClips,
+      requiredPublishFailures,
+      errorMessage: `Platform wajib gagal publish: ${requiredPublishFailures.join("; ")}`
     };
   }
 
@@ -760,6 +788,7 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
       successfulClips,
       failedClips,
       publishedClips,
+      requiredPublishFailures,
       errorMessage: `${publishedClips}/${total} clip berhasil publish.`
     };
   }
@@ -773,6 +802,7 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
       successfulClips,
       failedClips,
       publishedClips,
+      requiredPublishFailures,
       errorMessage: "Quota YouTube habis; video dikembalikan ke queue untuk jadwal berikutnya."
     };
   }
@@ -785,6 +815,7 @@ function finalStatusFromClipResults(clipResults, publishEnabled) {
     successfulClips,
     failedClips,
     publishedClips,
+    requiredPublishFailures,
     errorMessage: "Publish platform gagal; siap retry."
   };
 }
@@ -917,6 +948,26 @@ function platformPublishStatus(platformResults, name, enabled, successStatus = "
   if (name === "youtube" && platformResults?.quotaExceeded?.youtube) return "quota_exceeded";
   if (platformResults?.errors?.[name]) return "failed";
   return "skipped";
+}
+
+function requiredFailuresForPlatform(platformResults, name) {
+  const platformConfig = config[name];
+  if (!platformConfig) return [];
+
+  if (!platformConfig.enabled) {
+    return [`${name}: platform wajib tapi sedang disabled`];
+  }
+
+  if (platformResults?.[name]) return [];
+
+  return [`${name}: ${platformResults?.errors?.[name] || "tidak terposting"}`];
+}
+
+function requiredPublishFailuresFor(platformResults) {
+  return (config.requiredPublishPlatforms || [])
+    .map((name) => String(name || "").trim().toLowerCase())
+    .filter(Boolean)
+    .flatMap((name) => requiredFailuresForPlatform(platformResults, name));
 }
 
 async function publishPlatform(name, platformResults, jobId, callback) {
