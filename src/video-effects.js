@@ -4,10 +4,10 @@ import { spawn } from "node:child_process";
 import { config } from "./config.js";
 
 const FRAME = {
-  width: 950,
-  height: 1375,
-  x: 65,
-  y: 138
+  width: 912,
+  height: 1362,
+  x: 84,
+  y: 128
 };
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 
@@ -182,7 +182,7 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
   }
 
   const useFrame = selected.frame;
-  const useWatermark = selected.watermark && await fileIsReadable(config.videoEffects.watermarkAssetPath);
+  const useWatermark = !useFrame && selected.watermark && await fileIsReadable(config.videoEffects.watermarkAssetPath);
   const lowerThirdText = normalizeOverlayText(
     options.lowerThirdText
     || video.lower_third_text
@@ -195,7 +195,7 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
   if (selected.frame && !await fileIsReadable(config.videoEffects.frameAssetPath)) {
     throw new Error(`VIDEO_FRAME_ASSET tidak ditemukan: ${config.videoEffects.frameAssetPath}`);
   }
-  if (selected.watermark && !useWatermark) {
+  if (!useFrame && selected.watermark && !useWatermark) {
     throw new Error(`VIDEO_WATERMARK_ASSET tidak ditemukan: ${config.videoEffects.watermarkAssetPath}`);
   }
 

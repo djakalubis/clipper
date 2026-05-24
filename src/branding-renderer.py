@@ -13,6 +13,10 @@ GOLD = (255, 190, 18)
 DEEP_GOLD = (238, 130, 0)
 WHITE = (248, 248, 244)
 BLACK = (3, 3, 3)
+SKIPBYTE_BLUE = (56, 88, 130)
+SKIPBYTE_DARK_BLUE = (51, 83, 123)
+SKIPBYTE_GREEN = (94, 189, 113)
+FRAME_RECT = (84, 128, 996, 1490)
 
 
 def clean_text(value, fallback=""):
@@ -64,6 +68,32 @@ def load_font(size):
         except Exception:
             pass
     return ImageFont.load_default(size=size)
+
+
+def clean_font_candidates():
+    env_font = os.environ.get("VIDEO_LOWER_THIRD_FONT_FILE") or os.environ.get("THUMBNAIL_FONT_FILE")
+    candidates = [
+        env_font,
+        r"C:\Windows\Fonts\arialbd.ttf",
+        r"C:\Windows\Fonts\segoeuib.ttf",
+        r"C:\Windows\Fonts\segoeuisb.ttf",
+        str(Path.home() / ".local/share/fonts/selawik/Selawik-Bold.ttf"),
+        str(Path.home() / ".local/share/fonts/selawik/SelawikSemibold.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+    ]
+    return [item for item in candidates if item]
+
+
+def load_clean_font(size):
+    for item in clean_font_candidates():
+        try:
+            path = Path(item)
+            if path.exists():
+                return ImageFont.truetype(str(path), size=size)
+        except Exception:
+            pass
+    return load_font(size)
 
 
 def text_size(draw, text, font, stroke_width=0):
@@ -212,6 +242,120 @@ def add_vignette(image):
     image.alpha_composite(overlay)
 
 
+def lerp_channel(a, b, t):
+    return int(a + (b - a) * t)
+
+
+def lerp_color(a, b, t):
+    return tuple(lerp_channel(a[i], b[i], t) for i in range(3))
+
+
+def draw_wave_layer(draw, points, fill):
+    draw.polygon(points, fill=fill)
+
+
+def draw_frame_border(draw, rect, width=14):
+    x1, y1, x2, y2 = rect
+    for index in range(width):
+        t = index / max(1, width - 1)
+        top = lerp_color(SKIPBYTE_DARK_BLUE, (64, 103, 135), t)
+        bottom = lerp_color(SKIPBYTE_GREEN, (84, 171, 111), t)
+        draw.line((x1 + index, y1, x2 - index, y1), fill=(*top, 235), width=1)
+        draw.line((x1 + index, y2, x2 - index, y2), fill=(*bottom, 235), width=1)
+
+    for y in range(y1, y2 + 1):
+        t = (y - y1) / max(1, y2 - y1)
+        color = lerp_color(SKIPBYTE_DARK_BLUE, SKIPBYTE_GREEN, t)
+        draw.line((x1, y, x1 + width - 1, y), fill=(*color, 235), width=1)
+        draw.line((x2 - width + 1, y, x2, y), fill=(*color, 235), width=1)
+
+
+def render_frame(args):
+    source_path = Path(args.input or "")
+    if source_path.exists():
+        original = Image.open(source_path).convert("RGBA").resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
+        canvas = original.copy()
+        alpha = canvas.getchannel("A")
+        alpha_draw = ImageDraw.Draw(alpha)
+        alpha_draw.rectangle((98, 142, 982, 1476), fill=0)
+        canvas.putalpha(alpha)
+        for box in [(130, 98, 730, 174), (775, 145, 970, 278)]:
+            canvas.alpha_composite(original.crop(box), box[:2])
+        draw = ImageDraw.Draw(canvas)
+        draw.rounded_rectangle((100, 1566, 984, 1748), radius=36, fill=(*SKIPBYTE_BLUE, 255))
+        canvas.save(args.output, "PNG")
+        return
+
+    canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (236, 248, 246, 255))
+    draw = ImageDraw.Draw(canvas)
+
+    for y in range(CANVAS_H):
+        t = y / CANVAS_H
+        left = lerp_color((56, 133, 211), (250, 252, 238), t)
+        right = lerp_color((116, 203, 229), (201, 237, 121), t)
+        for x in range(CANVAS_W):
+            xt = x / CANVAS_W
+            color = lerp_color(left, right, xt)
+            draw.point((x, y), fill=(*color, 255))
+
+    draw_wave_layer(draw, [
+        (0, 0), (410, 0), (395, 105), (338, 214), (199, 292),
+        (0, 388)
+    ], (53, 100, 184, 120))
+    draw_wave_layer(draw, [
+        (0, 386), (155, 304), (331, 250), (468, 244), (612, 292),
+        (745, 432), (910, 626), (1080, 734), (1080, 1920), (0, 1920)
+    ], (242, 250, 249, 220))
+    draw_wave_layer(draw, [
+        (453, 0), (1080, 0), (1080, 698), (992, 700), (832, 636),
+        (682, 456), (560, 268), (490, 100)
+    ], (49, 101, 184, 75))
+    draw_wave_layer(draw, [
+        (0, 1660), (280, 1778), (579, 1880), (1080, 1700), (1080, 1920), (0, 1920)
+    ], (250, 252, 244, 205))
+    draw_wave_layer(draw, [
+        (650, 1920), (1080, 1570), (1080, 1920)
+    ], (172, 221, 77, 110))
+
+    x1, y1, x2, y2 = FRAME_RECT
+    transparent_hole = (x1 + 14, y1 + 14, x2 - 14, y2 - 14)
+    mask = Image.new("L", canvas.size, 0)
+    md = ImageDraw.Draw(mask)
+    md.rectangle(transparent_hole, fill=255)
+    canvas.putalpha(Image.composite(Image.new("L", canvas.size, 0), canvas.getchannel("A"), mask))
+
+    draw = ImageDraw.Draw(canvas)
+    draw_frame_border(draw, FRAME_RECT, 14)
+
+    tab = (132, 102, 724, 170)
+    draw.rounded_rectangle(tab, radius=32, fill=(*SKIPBYTE_DARK_BLUE, 255))
+    draw.rectangle((tab[0], tab[1] + 32, tab[2], tab[3]), fill=(*SKIPBYTE_DARK_BLUE, 255))
+    title = "Kutipan Ceramah/Motivasi Singkat"
+    title_size = 34
+    title_font = load_clean_font(title_size)
+    tw, th = text_size(draw, title, title_font, 0)
+    while title_size > 26 and tw > (tab[2] - tab[0] - 56):
+        title_size -= 1
+        title_font = load_clean_font(title_size)
+        tw, th = text_size(draw, title, title_font, 0)
+    draw.text((tab[0] + (tab[2] - tab[0] - tw) / 2, tab[1] + 17), title, font=title_font, fill=WHITE)
+
+    logo_box = (778, 148, 966, 275)
+    draw.rectangle(logo_box, fill=(255, 255, 255, 255))
+    logo_path = Path(args.logo or "")
+    if logo_path.exists():
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            logo.thumbnail((logo_box[2] - logo_box[0] - 18, logo_box[3] - logo_box[1] - 18), Image.Resampling.LANCZOS)
+            lx = logo_box[0] + (logo_box[2] - logo_box[0] - logo.width) // 2
+            ly = logo_box[1] + (logo_box[3] - logo_box[1] - logo.height) // 2
+            canvas.alpha_composite(logo, (lx, ly))
+        except Exception:
+            pass
+
+    canvas.save(args.output, "PNG")
+
+
 def save_jpeg_under_limit(image, output):
     rgb = image.convert("RGB")
     quality = 94
@@ -265,34 +409,35 @@ def render_thumbnail(args):
 
 def render_lower_third(args):
     quote = clean_quote(args.quote)
-    brand = normalize_brand(args.brand or os.environ.get("VIDEO_LOWER_THIRD_BRAND"))
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    rect = (116, 1564, 964, 1742)
-    add_glow(canvas, rect, 26, GOLD, 120)
-    draw.rounded_rectangle(rect, radius=26, fill=(0, 0, 0, 150), outline=(*GOLD, 180), width=2)
-    draw.rounded_rectangle((rect[0] + 14, rect[1] + 14, rect[2] - 14, rect[3] - 14), radius=18, outline=(255, 255, 255, 45), width=1)
+    rect = (100, 1566, 984, 1748)
+    draw.rounded_rectangle(rect, radius=36, fill=(*SKIPBYTE_BLUE, 255))
 
-    max_width = rect[2] - rect[0] - 90
-    quote_size = 43
-    font = load_font(quote_size)
+    max_width = rect[2] - rect[0] - 120
+    quote_size = 52
+    font = load_clean_font(quote_size)
     lines = wrap_text(draw, f"\"{quote}\"", font, max_width, 2)
-    while len(lines) > 1 and text_size(draw, lines[0], font, 2)[0] > max_width:
-        quote_size = max(32, quote_size - 2)
-        font = load_font(quote_size)
+    while quote_size > 34:
+        line_gap = max(6, int(quote_size * 0.12))
+        heights = [text_size(draw, line, font, 1)[1] for line in lines]
+        total_h = sum(heights) + line_gap * (len(lines) - 1)
+        if len(lines) <= 2 and total_h <= rect[3] - rect[1] - 44:
+            break
+        quote_size -= 2
+        font = load_clean_font(quote_size)
         lines = wrap_text(draw, f"\"{quote}\"", font, max_width, 2)
-    line_h = font.size + 8
-    y = rect[1] + 32
-    for line in lines:
-        width, _ = text_size(draw, line, font, 2)
-        draw.text(((CANVAS_W - width) / 2, y), line, font=font, fill=WHITE, stroke_width=2, stroke_fill=(0, 0, 0, 210))
-        y += line_h
 
-    brand_font = load_font(27)
-    brand_w, _ = text_size(draw, brand, brand_font, 1)
-    draw.text(((CANVAS_W - brand_w) / 2, rect[3] - 45), brand, font=brand_font, fill=(215, 183, 122, 220), stroke_width=1, stroke_fill=(0, 0, 0, 190))
-    draw.rounded_rectangle((180, rect[3] - 9, 900, rect[3] - 3), radius=4, fill=(255, 190, 18, 160))
+    line_gap = max(6, int(quote_size * 0.12))
+    heights = [text_size(draw, line, font, 1)[1] for line in lines]
+    total_h = sum(heights) + line_gap * (len(lines) - 1)
+    y = rect[1] + (rect[3] - rect[1] - total_h) / 2 - 3
+    for line in lines:
+        width, height = text_size(draw, line, font, 1)
+        draw.text(((CANVAS_W - width) / 2, y), line, font=font, fill=WHITE, stroke_width=1, stroke_fill=SKIPBYTE_BLUE)
+        y += height + line_gap
+
     canvas.save(args.output, "PNG")
 
 
@@ -311,11 +456,18 @@ def main(argv):
     lower.add_argument("--quote", required=True)
     lower.add_argument("--brand", default="")
 
+    frame = sub.add_parser("frame")
+    frame.add_argument("--output", required=True)
+    frame.add_argument("--input", default="")
+    frame.add_argument("--logo", default="")
+
     args = parser.parse_args(argv)
     if args.command == "thumbnail":
         render_thumbnail(args)
     elif args.command == "lower-third":
         render_lower_third(args)
+    elif args.command == "frame":
+        render_frame(args)
 
 
 if __name__ == "__main__":
