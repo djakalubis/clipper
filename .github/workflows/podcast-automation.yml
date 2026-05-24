@@ -199,7 +199,7 @@ jobs:
       OPENAI_TRANSCRIBE_MODEL: ${{ secrets.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe' }}
       AI_REQUEST_TIMEOUT_SECONDS: ${{ secrets.AI_REQUEST_TIMEOUT_SECONDS || '25' }}
       TRANSCRIBE_PROVIDER: ${{ secrets.TRANSCRIBE_PROVIDER || 'deepgram' }}
-      MAX_SCHEDULED_POSTS_PER_DAY: "0"
+      MAX_SCHEDULED_POSTS_PER_DAY: "2"
       DEEPGRAM_ENABLED: ${{ github.event.inputs.deepgram_enabled || '1' }}
       DEEPGRAM_API_KEYS: ${{ secrets.DEEPGRAM_API_KEYS }}
       DEEPGRAM_MODEL: ${{ secrets.DEEPGRAM_MODEL || 'nova-3' }}

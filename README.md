@@ -195,9 +195,9 @@ Sistem harus mengecek apakah posting untuk tanggal hari ini sudah dilakukan.
 Aturan cron harian:
 
 ```txt
-Workflow scheduled berjalan 15 kali per hari.
-MAX_SCHEDULED_POSTS_PER_DAY default `0`, jadi scheduled run tidak memakai limit harian.
-Jika ingin membatasi posting, isi MAX_SCHEDULED_POSTS_PER_DAY lebih dari `0`.
+Workflow scheduled berjalan 2 kali per hari: 10:00 WIB dan 17:00 WIB.
+MAX_SCHEDULED_POSTS_PER_DAY default produksi `2`, jadi run terjadwal maksimal publish 2 kali per hari.
+Jika ingin mengubah batas posting, isi MAX_SCHEDULED_POSTS_PER_DAY sesuai kebutuhan.
 ```
 
 ---
@@ -730,7 +730,7 @@ INSTAGRAM_CONTAINER_MAX_ATTEMPTS=90
 THREADS_UPLOAD_ENABLED=false
 THREADS_CONTAINER_POLL_SECONDS=6
 THREADS_CONTAINER_MAX_ATTEMPTS=90
-MAX_SCHEDULED_POSTS_PER_DAY=0
+MAX_SCHEDULED_POSTS_PER_DAY=2
 AUTO_DISCOVER_DAILY_QUEUE_LIMIT=0
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
@@ -829,7 +829,7 @@ VIDEO_EFFECT_PRESET=veryfast
 THUMBNAIL_PILL_TEXT=Ceramah | Hikmah | Pengingat
 THUMBNAIL_INTRO_ENABLED=true
 THUMBNAIL_INTRO_SECONDS=0.9
-MAX_SCHEDULED_POSTS_PER_DAY=0
+MAX_SCHEDULED_POSTS_PER_DAY=2
 AUTO_DISCOVER_DAILY_QUEUE_LIMIT=0
 AUTO_DISCOVER_EXPIRE_OLD_QUEUE=true
 AUTO_DISCOVER_QUEUE_TTL_DAYS=1
@@ -845,7 +845,7 @@ CLEANUP_LOCAL_IMAGES_AFTER_FTP_UPLOAD=true
 AUTO_DASHBOARD_PIN=
 AUTO_DASHBOARD_ALLOW_REMOTE=false
 
-POST_CRON=0 8,13,19 * * *
+POST_CRON=0 10,17 * * *
 DEFAULT_THEME=auto
 AUTO_DISCOVER_QUERY=podcast indonesia hari ini|podcast indonesia viral hari ini|ceramah indonesia hari ini|ceramah indonesia terbaru|ceramah indonesia viral|podcast musisi indonesia terbaru|podcast musisi indonesia viral|podcast musisi indonesia hari ini|podcast ariel noah terbaru|podcast ahmad dhani terbaru|podcast ari lasso terbaru|podcast penyanyi indonesia terbaru|podcast band indonesia terbaru|podcast deddy corbuzier terbaru|podcast vindes terbaru
 AUTO_DISCOVER_DAILY_QUERY=podcast musisi indonesia viral hari ini
@@ -979,7 +979,7 @@ Upload custom thumbnail ke YouTube. Default: `false`, karena thumbnail sudah dim
 
 #### `MAX_SCHEDULED_POSTS_PER_DAY`
 
-Batas publish dari run terjadwal GitHub Actions per hari. Default: `0`, artinya tidak ada limit harian. Jika diisi lebih dari `0` dan batas tercapai, workflow scheduled berikutnya akan skip.
+Batas publish dari run terjadwal GitHub Actions per hari. Default produksi: `2`, artinya maksimal 2 publish per hari. Jika batas tercapai, workflow scheduled berikutnya akan skip.
 
 #### `AUTO_DISCOVER_DAILY_QUEUE_LIMIT`
 
