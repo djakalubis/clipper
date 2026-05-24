@@ -413,8 +413,6 @@ def render_lower_third(args):
     draw = ImageDraw.Draw(canvas)
 
     rect = (100, 1566, 984, 1748)
-    draw.rounded_rectangle(rect, radius=36, fill=(*SKIPBYTE_BLUE, 255))
-
     max_width = rect[2] - rect[0] - 120
     quote_size = 52
     font = load_clean_font(quote_size)
@@ -435,7 +433,7 @@ def render_lower_third(args):
     y = rect[1] + (rect[3] - rect[1] - total_h) / 2 - 3
     for line in lines:
         width, height = text_size(draw, line, font, 1)
-        draw.text(((CANVAS_W - width) / 2, y), line, font=font, fill=WHITE, stroke_width=1, stroke_fill=SKIPBYTE_BLUE)
+        draw.text(((CANVAS_W - width) / 2, y), line, font=font, fill=WHITE)
         y += height + line_gap
 
     canvas.save(args.output, "PNG")
