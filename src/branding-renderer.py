@@ -275,19 +275,27 @@ def render_frame(args):
     if source_path.exists():
         original = Image.open(source_path).convert("RGBA").resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
         canvas = original.copy()
-        alpha = canvas.getchannel("A")
-        alpha_draw = ImageDraw.Draw(alpha)
-        alpha_draw.rectangle((98, 142, 982, 1476), fill=0)
-        canvas.putalpha(alpha)
-        for box in [(130, 98, 730, 174), (775, 145, 970, 278)]:
-            canvas.alpha_composite(original.crop(box), box[:2])
         draw = ImageDraw.Draw(canvas)
         draw.rounded_rectangle((100, 1566, 984, 1748), radius=36, fill=(*SKIPBYTE_BLUE, 255))
         canvas.save(args.output, "PNG")
+
+        if args.foreground_output:
+            foreground = canvas.copy()
+            alpha = foreground.getchannel("A")
+            alpha_draw = ImageDraw.Draw(alpha)
+            alpha_draw.rectangle((98, 142, 982, 1476), fill=0)
+            foreground.putalpha(alpha)
+            for box in [(84, 118, 996, 160), (130, 98, 730, 174), (775, 145, 970, 278)]:
+                foreground.alpha_composite(canvas.crop(box), box[:2])
+            foreground.save(args.foreground_output, "PNG")
         return
 
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (236, 248, 246, 255))
     draw = ImageDraw.Draw(canvas)
+
+    if args.foreground_output:
+        foreground = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
+        foreground.save(args.foreground_output, "PNG")
 
     for y in range(CANVAS_H):
         t = y / CANVAS_H
@@ -457,6 +465,7 @@ def main(argv):
     frame = sub.add_parser("frame")
     frame.add_argument("--output", required=True)
     frame.add_argument("--input", default="")
+    frame.add_argument("--foreground-output", default="")
     frame.add_argument("--logo", default="")
 
     args = parser.parse_args(argv)

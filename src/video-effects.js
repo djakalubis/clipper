@@ -4,10 +4,10 @@ import { spawn } from "node:child_process";
 import { config } from "./config.js";
 
 const FRAME = {
-  width: 912,
-  height: 1362,
-  x: 84,
-  y: 128
+  width: 884,
+  height: 1334,
+  x: 98,
+  y: 142
 };
 const rendererPath = path.join(config.srcDir, "branding-renderer.py");
 
@@ -59,6 +59,11 @@ async function hasAudioStream(filePath) {
 
 function ffmpegPathArg(filePath) {
   return String(filePath).replace(/\\/g, "/").replace(/'/g, "\\'");
+}
+
+function foregroundFramePath(framePath) {
+  const parsed = path.parse(framePath);
+  return path.join(parsed.dir, `${parsed.name}-foreground${parsed.ext || ".png"}`);
 }
 
 function lightFilterChain() {
@@ -182,6 +187,7 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
   }
 
   const useFrame = selected.frame;
+  const frameForegroundPath = useFrame ? foregroundFramePath(config.videoEffects.frameAssetPath) : "";
   const useWatermark = !useFrame && selected.watermark && await fileIsReadable(config.videoEffects.watermarkAssetPath);
   const lowerThirdText = normalizeOverlayText(
     options.lowerThirdText
@@ -194,6 +200,9 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
   const useLowerThird = Boolean(useFrame && selected.lowerThird && lowerThirdText);
   if (selected.frame && !await fileIsReadable(config.videoEffects.frameAssetPath)) {
     throw new Error(`VIDEO_FRAME_ASSET tidak ditemukan: ${config.videoEffects.frameAssetPath}`);
+  }
+  if (useFrame && !await fileIsReadable(frameForegroundPath)) {
+    throw new Error(`VIDEO_FRAME foreground tidak ditemukan: ${frameForegroundPath}`);
   }
   if (!useFrame && selected.watermark && !useWatermark) {
     throw new Error(`VIDEO_WATERMARK_ASSET tidak ditemukan: ${config.videoEffects.watermarkAssetPath}`);
@@ -211,8 +220,8 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
 
   const args = ["-y", "-fflags", "+genpts", "-i", inputPath];
   if (useFrame) {
-    args.push("-f", "lavfi", "-i", "color=c=#070709:s=1080x1920:r=30");
     args.push("-loop", "1", "-i", config.videoEffects.frameAssetPath);
+    args.push("-loop", "1", "-i", frameForegroundPath);
   }
   if (useLowerThird) {
     args.push("-loop", "1", "-i", lowerThirdPath);
@@ -284,6 +293,7 @@ export async function applyVideoEffects({ job, video, output, options = {} }) {
       lowerThird: useLowerThird,
       lowerThirdText: useLowerThird ? lowerThirdText : "",
       frameAssetPath: useFrame ? ffmpegPathArg(config.videoEffects.frameAssetPath) : "",
+      frameForegroundPath: useFrame ? ffmpegPathArg(frameForegroundPath) : "",
       watermarkAssetPath: useWatermark ? ffmpegPathArg(config.videoEffects.watermarkAssetPath) : ""
     }
   };
