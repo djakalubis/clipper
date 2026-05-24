@@ -31,6 +31,16 @@ export async function publishedCountToday(date = todayDate()) {
   return history.filter((entry) => entry.status === "published" && entry.publish_date === date).length;
 }
 
+export async function publishedCountForScheduleSlot(scheduleSlot, date = todayDate()) {
+  if (!scheduleSlot) return 0;
+  const history = await readJson("history", []);
+  return history.filter((entry) => (
+    entry.status === "published"
+    && entry.publish_date === date
+    && entry.schedule_slot === scheduleSlot
+  )).length;
+}
+
 export async function appendHistory(entry) {
   const history = await readJson("history", []);
   history.push({

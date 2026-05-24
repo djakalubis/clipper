@@ -3,7 +3,7 @@ import path from "node:path";
 import { config, canPublish, shouldUploadToRemote } from "./config.js";
 import { ensureProjectDirs, patchItem, saveGeneratedJson } from "./storage.js";
 import { appendLog } from "./logger.js";
-import { appendHistory, publishedCountToday } from "./history.js";
+import { appendHistory, publishedCountForScheduleSlot, publishedCountToday } from "./history.js";
 import { addVideo, createJobRecord, selectNextVideo, updateVideoStatus } from "./selector.js";
 import { runClipper } from "./clipper-runner.js";
 import { generateCaption, generateFrameQuoteText, generateThumbnailText } from "./caption.js";
@@ -58,13 +58,31 @@ export async function runWorkflow(options = {}) {
 
   let scheduledDailyLimit = 0;
   let scheduledPostedToday = 0;
+  let scheduledSlot = "";
+  let scheduledPostedInSlot = 0;
 
   if (options.scheduled && options.publish) {
     scheduledDailyLimit = Math.max(0, Number(process.env.MAX_SCHEDULED_POSTS_PER_DAY) || 0);
     scheduledPostedToday = scheduledDailyLimit > 0 ? await publishedCountToday() : 0;
+    scheduledSlot = cleanScheduleSlot(process.env.SCHEDULED_SLOT_LABEL);
+    scheduledPostedInSlot = scheduledSlot ? await publishedCountForScheduleSlot(scheduledSlot) : 0;
+    if (scheduledSlot && scheduledPostedInSlot > 0) {
+      await appendLog("scheduled_skip", {
+        reason: "slot_already_published",
+        schedule_slot: scheduledSlot,
+        posted_in_slot: scheduledPostedInSlot
+      });
+      return {
+        status: "scheduled_skip",
+        reason: "slot_already_published",
+        schedule_slot: scheduledSlot,
+        posted_in_slot: scheduledPostedInSlot
+      };
+    }
     if (scheduledDailyLimit > 0 && scheduledPostedToday >= scheduledDailyLimit) {
       await appendLog("scheduled_skip", {
         reason: "daily_limit_reached",
+        schedule_slot: scheduledSlot,
         posted_today: scheduledPostedToday,
         daily_limit: scheduledDailyLimit
       });
@@ -319,6 +337,7 @@ async function processSelectedWorkflow({ selection, options, scheduledDailyLimit
         job_id: job.job_id,
         generated_clip_count: allOutputs.length,
         processed_clip_count: outputs.length,
+        schedule_slot: cleanScheduleSlot(process.env.SCHEDULED_SLOT_LABEL),
         posted_today: scheduledPostedToday,
         daily_limit: scheduledDailyLimit
       });
@@ -1029,6 +1048,10 @@ function buildMetadata({ job, video, theme, prompt, output, clipperResult, capti
   };
 }
 
+function cleanScheduleSlot(value) {
+  return String(value || "").trim();
+}
+
 async function appendHistoryEntry({ job, video, caption, output, upload, platformResults = {}, status, clipIndex = 1, clipTotal = 1 }) {
   await appendHistory({
     job_id: job.job_id,
@@ -1040,6 +1063,7 @@ async function appendHistoryEntry({ job, video, caption, output, upload, platfor
     theme: job.theme,
     status,
     publish_date: status === "published" ? todayDate() : "",
+    schedule_slot: status === "published" ? cleanScheduleSlot(process.env.SCHEDULED_SLOT_LABEL) : "",
     final_video_path: output.finalAbsPath,
     original_final_video_path: output.originalFinalAbsPath || "",
     video_effects: output.videoEffects || "",

@@ -94,8 +94,9 @@ on:
   schedule:
     # GitHub schedule uses UTC.
     # Target 2 video/hari: 10:00 WIB dan 17:00 WIB.
-    - cron: "0 3 * * *"   # 10:00 WIB
-    - cron: "0 10 * * *"  # 17:00 WIB
+    # Repeat within each target hour so a delayed/dropped GitHub cron gets another chance.
+    - cron: "0,15,30,45 3 * * *"   # 10:00 WIB retry window
+    - cron: "0,15,30,45 10 * * *"  # 17:00 WIB retry window
 
 concurrency:
   group: podcast-clipper-automation
@@ -999,6 +1000,7 @@ jobs:
         timeout-minutes: 45
         env:
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
           THEME: ${{ github.event.inputs.theme || 'auto' }}
           URL: ${{ github.event.inputs.url || '' }}
           RANGE: ${{ github.event.inputs.range || '' }}
@@ -1010,6 +1012,18 @@ jobs:
           # Manual run tidak memakai --scheduled agar tidak kena guard already_published_today.
           if [ "$EVENT_NAME" = "schedule" ]; then
             args+=(--scheduled)
+            case "$EVENT_SCHEDULE" in
+              "0,15,30,45 3 * * *")
+                export SCHEDULED_SLOT_LABEL="10:00"
+                ;;
+              "0,15,30,45 10 * * *")
+                export SCHEDULED_SLOT_LABEL="17:00"
+                ;;
+              *)
+                export SCHEDULED_SLOT_LABEL=""
+                ;;
+            esac
+            echo "Scheduled slot: ${SCHEDULED_SLOT_LABEL:-unknown}"
           fi
 
           if [ -n "$URL" ]; then
