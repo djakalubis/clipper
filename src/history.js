@@ -37,13 +37,26 @@ export async function publishedCountForScheduleSlot(scheduleSlot, date = todayDa
   return history.filter((entry) => (
     entry.publish_date === date
     && entry.schedule_slot === scheduleSlot
-    && (
-      entry.status === "published"
-      || entry.instagram_media_id
-      || entry.facebook_video_id
-      || entry.facebook_post_id
-    )
+    && entry.status === "published"
   )).length;
+}
+
+export async function publishedPlatformForScheduleSlot(scheduleSlot, platform, date = todayDate()) {
+  if (!scheduleSlot || !platform) return null;
+  const history = await readJson("history", []);
+  const fieldsByPlatform = {
+    facebook: ["facebook_video_id", "facebook_post_id"],
+    instagram: ["instagram_media_id"],
+    youtube: ["youtube_video_id"],
+    tiktok: ["tiktok_publish_id"],
+    threads: ["threads_media_id"]
+  };
+  const fields = fieldsByPlatform[String(platform).toLowerCase()] || [];
+  return history.find((entry) => (
+    entry.publish_date === date
+    && entry.schedule_slot === scheduleSlot
+    && fields.some((field) => entry[field])
+  )) || null;
 }
 
 export async function appendHistory(entry) {

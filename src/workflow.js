@@ -3,7 +3,7 @@ import path from "node:path";
 import { config, canPublish, shouldUploadToRemote } from "./config.js";
 import { ensureProjectDirs, patchItem, saveGeneratedJson } from "./storage.js";
 import { appendLog } from "./logger.js";
-import { appendHistory, publishedCountForScheduleSlot, publishedCountToday } from "./history.js";
+import { appendHistory, publishedCountForScheduleSlot, publishedCountToday, publishedPlatformForScheduleSlot } from "./history.js";
 import { addVideo, createJobRecord, selectNextVideo, updateVideoStatus } from "./selector.js";
 import { runClipper } from "./clipper-runner.js";
 import { generateCaption, generateFrameQuoteText, generateThumbnailText } from "./caption.js";
@@ -858,6 +858,9 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     hasAnySuccess: false,
     hasErrors: false
   };
+  const scheduledSlot = cleanScheduleSlot(process.env.SCHEDULED_SLOT_LABEL);
+  const alreadyFacebook = scheduledSlot ? await publishedPlatformForScheduleSlot(scheduledSlot, "facebook") : null;
+  const alreadyInstagram = scheduledSlot ? await publishedPlatformForScheduleSlot(scheduledSlot, "instagram") : null;
 
   if (config.youtube.enabled) {
     const cooldown = await youtubeQuotaCooldown("upload");
@@ -905,33 +908,73 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
   }
 
   if (config.facebook.enabled) {
-    platformResults.facebook = await publishPlatform("facebook", platformResults, job.job_id, async () => {
-      await updateJob(job.job_id, { facebook_status: "processing", facebook_error: "" });
-      return publishToFacebook({
-        videoUrl: upload.videoUrl,
-        videoPath: output.finalAbsPath,
-        title: output.title || job.source_title || "Podcast Clip",
-        description: socialCaption,
-        thumbnailPath: thumbnail?.path || ""
+    if (alreadyFacebook) {
+      platformResults.facebook = {
+        videoId: alreadyFacebook.facebook_video_id || "",
+        postId: alreadyFacebook.facebook_post_id || "",
+        url: alreadyFacebook.facebook_url || "",
+        skipped: true
+      };
+      platformResults.hasAnySuccess = true;
+      await updateJob(job.job_id, {
+        facebook_status: "published",
+        facebook_video_id: platformResults.facebook.videoId,
+        facebook_post_id: platformResults.facebook.postId,
+        facebook_url: platformResults.facebook.url,
+        facebook_error: ""
       });
-    });
+      await appendLog("platform_publish_skipped_existing", {
+        job_id: job.job_id,
+        platform: "facebook",
+        schedule_slot: scheduledSlot
+      });
+    } else {
+      platformResults.facebook = await publishPlatform("facebook", platformResults, job.job_id, async () => {
+        await updateJob(job.job_id, { facebook_status: "processing", facebook_error: "" });
+        return publishToFacebook({
+          videoUrl: upload.videoUrl,
+          videoPath: output.finalAbsPath,
+          title: output.title || job.source_title || "Podcast Clip",
+          description: socialCaption,
+          thumbnailPath: thumbnail?.path || ""
+        });
+      });
+    }
   }
 
   if (config.instagram.enabled) {
-    platformResults.instagram = await publishPlatform("instagram", platformResults, job.job_id, async () => {
-      await updateJob(job.job_id, { instagram_status: "processing", instagram_error: "" });
-      const instagramVideo = await prepareInstagramVideo({
-        job,
-        sourcePath: output.finalAbsPath,
-        currentVideoUrl: upload.videoUrl
+    if (alreadyInstagram) {
+      platformResults.instagram = {
+        mediaId: alreadyInstagram.instagram_media_id || "",
+        skipped: true
+      };
+      platformResults.hasAnySuccess = true;
+      await updateJob(job.job_id, {
+        instagram_status: "published",
+        instagram_media_id: platformResults.instagram.mediaId,
+        instagram_error: ""
       });
-      return publishReel({
-        videoUrl: instagramVideo.videoUrl,
-        videoPath: instagramVideo.videoPath,
-        caption: socialCaption,
-        coverUrl: upload.thumbnailUrl || ""
+      await appendLog("platform_publish_skipped_existing", {
+        job_id: job.job_id,
+        platform: "instagram",
+        schedule_slot: scheduledSlot
       });
-    });
+    } else {
+      platformResults.instagram = await publishPlatform("instagram", platformResults, job.job_id, async () => {
+        await updateJob(job.job_id, { instagram_status: "processing", instagram_error: "" });
+        const instagramVideo = await prepareInstagramVideo({
+          job,
+          sourcePath: output.finalAbsPath,
+          currentVideoUrl: upload.videoUrl
+        });
+        return publishReel({
+          videoUrl: instagramVideo.videoUrl,
+          videoPath: instagramVideo.videoPath,
+          caption: socialCaption,
+          coverUrl: upload.thumbnailUrl || ""
+        });
+      });
+    }
   }
 
   if (config.tiktok.enabled) {
