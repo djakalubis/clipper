@@ -1,0 +1,60 @@
+name: Podcast Schedule Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub schedule uses UTC. Watch target windows after 10:00 and 17:00 WIB.
+    - cron: "*/15 3-15 * * *"
+
+concurrency:
+  group: podcast-schedule-watchdog
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Decide current WIB slot
+        id: slot
+        shell: bash
+        run: |
+          set -euo pipefail
+          hour="$(TZ=Asia/Jakarta date +%H)"
+          minute="$(TZ=Asia/Jakarta date +%M)"
+          now="$(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M:%S %Z')"
+          slot=""
+
+          if [ "$hour" -ge 10 ] && [ "$hour" -lt 17 ]; then
+            slot="10:00"
+          elif [ "$hour" -ge 17 ] && [ "$hour" -le 23 ]; then
+            slot="17:00"
+          fi
+
+          echo "WIB now: $now"
+          echo "slot=$slot" >> "$GITHUB_OUTPUT"
+          echo "minute=$minute" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch scheduled podcast run
+        if: steps.slot.outputs.slot != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLOT: ${{ steps.slot.outputs.slot }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Dispatching Podcast Clipper Automation for slot $SLOT"
+          gh workflow run podcast-automation.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f theme=auto \
+            -f deepgram_enabled=1 \
+            -f clip_count=1 \
+            -f use_frame=true \
+            -f use_filter=true \
+            -f use_watermark=true \
+            -f scheduled_run=true \
+            -f scheduled_slot="$SLOT"

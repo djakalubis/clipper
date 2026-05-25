@@ -10,6 +10,12 @@ const QUALITY_STEPS = [
   { video: "600k", audio: "64k" }
 ];
 
+function boolEnv(name, fallback = false) {
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
 async function fileSize(filePath) {
   const stat = await fs.stat(filePath);
   return stat.size;
@@ -77,8 +83,9 @@ async function transcodeInstagramVideo({ sourcePath, targetPath, videoBitrate, a
 export async function prepareInstagramVideo({ job, sourcePath, currentVideoUrl }) {
   const maxBytes = config.instagram.maxUploadBytes;
   const originalSize = await fileSize(sourcePath);
+  const normalizeVideo = boolEnv("INSTAGRAM_NORMALIZE_VIDEO", true);
 
-  if (!maxBytes || originalSize <= maxBytes) {
+  if (!normalizeVideo && (!maxBytes || originalSize <= maxBytes)) {
     return {
       videoUrl: currentVideoUrl,
       videoPath: sourcePath,
@@ -105,11 +112,12 @@ export async function prepareInstagramVideo({ job, sourcePath, currentVideoUrl }
       file: path.basename(targetPath),
       bytes,
       maxBytes,
+      normalizeVideo,
       videoBitrate: quality.video,
       audioBitrate: quality.audio
     });
 
-    if (bytes <= maxBytes) break;
+    if (!maxBytes || bytes <= maxBytes) break;
   }
 
   if (!best) {

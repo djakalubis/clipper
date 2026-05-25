@@ -35,9 +35,14 @@ export async function publishedCountForScheduleSlot(scheduleSlot, date = todayDa
   if (!scheduleSlot) return 0;
   const history = await readJson("history", []);
   return history.filter((entry) => (
-    entry.status === "published"
-    && entry.publish_date === date
+    entry.publish_date === date
     && entry.schedule_slot === scheduleSlot
+    && (
+      entry.status === "published"
+      || entry.instagram_media_id
+      || entry.facebook_video_id
+      || entry.facebook_post_id
+    )
   )).length;
 }
 

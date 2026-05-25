@@ -91,6 +91,14 @@ on:
         description: "AI teks dikunci ke OpenAI; input lama diabaikan"
         required: false
         default: "openai"
+      scheduled_run:
+        description: "Treat manual dispatch as scheduled slot: true/false"
+        required: false
+        default: "false"
+      scheduled_slot:
+        description: "Scheduled slot label, example 10:00 or 17:00"
+        required: false
+        default: ""
   schedule:
     # GitHub schedule uses UTC.
     # Target 2 video/hari: 10:00 WIB dan 17:00 WIB.
@@ -1001,6 +1009,8 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED_SCHEDULED_RUN: ${{ github.event.inputs.scheduled_run || 'false' }}
+          REQUESTED_SCHEDULED_SLOT: ${{ github.event.inputs.scheduled_slot || '' }}
           THEME: ${{ github.event.inputs.theme || 'auto' }}
           URL: ${{ github.event.inputs.url || '' }}
           RANGE: ${{ github.event.inputs.range || '' }}
@@ -1008,8 +1018,8 @@ jobs:
         run: |
           args=(--publish --theme "$THEME")
 
-          # Pakai --scheduled hanya saat trigger dari cron schedule.
-          # Manual run tidak memakai --scheduled agar tidak kena guard already_published_today.
+          # Pakai --scheduled untuk cron asli atau dispatch watchdog.
+          # Manual biasa tidak memakai --scheduled agar tetap bisa dipakai untuk publish darurat.
           if [ "$EVENT_NAME" = "schedule" ]; then
             args+=(--scheduled)
             case "$EVENT_SCHEDULE" in
@@ -1024,6 +1034,10 @@ jobs:
                 ;;
             esac
             echo "Scheduled slot: ${SCHEDULED_SLOT_LABEL:-unknown}"
+          elif [ "$REQUESTED_SCHEDULED_RUN" = "true" ] || [ "$REQUESTED_SCHEDULED_RUN" = "1" ]; then
+            args+=(--scheduled)
+            export SCHEDULED_SLOT_LABEL="$REQUESTED_SCHEDULED_SLOT"
+            echo "Scheduled slot: ${SCHEDULED_SLOT_LABEL:-watchdog}"
           fi
 
           if [ -n "$URL" ]; then
