@@ -859,42 +859,63 @@ async function publishPlatforms({ job, output, caption, upload, thumbnail }) {
     hasErrors: false
   };
   const scheduledSlot = cleanScheduleSlot(process.env.SCHEDULED_SLOT_LABEL);
+  const alreadyYoutube = scheduledSlot ? await publishedPlatformForScheduleSlot(scheduledSlot, "youtube") : null;
   const alreadyFacebook = scheduledSlot ? await publishedPlatformForScheduleSlot(scheduledSlot, "facebook") : null;
   const alreadyInstagram = scheduledSlot ? await publishedPlatformForScheduleSlot(scheduledSlot, "instagram") : null;
 
   if (config.youtube.enabled) {
-    const cooldown = await youtubeQuotaCooldown("upload");
-    if (cooldown.active) {
-      platformResults.hasErrors = true;
-      platformResults.quotaExceeded.youtube = true;
-      platformResults.errors.youtube = `YouTube quota cooldown aktif sampai ${cooldown.until}.`;
+    if (alreadyYoutube) {
+      platformResults.youtube = {
+        videoId: alreadyYoutube.youtube_video_id || "",
+        url: alreadyYoutube.youtube_url || "",
+        skipped: true
+      };
+      platformResults.hasAnySuccess = true;
       await updateJob(job.job_id, {
-        youtube_status: "quota_exceeded",
-        youtube_error: platformResults.errors.youtube
+        youtube_status: "published",
+        youtube_video_id: platformResults.youtube.videoId,
+        youtube_url: platformResults.youtube.url,
+        youtube_error: ""
       });
-      await appendLog("youtube_quota_cooldown_skip", {
+      await appendLog("platform_publish_skipped_existing", {
         job_id: job.job_id,
-        until: cooldown.until,
-        reason: cooldown.reason || ""
+        platform: "youtube",
+        schedule_slot: scheduledSlot
       });
-      console.warn(`YouTube upload dilewati sampai reset quota: ${cooldown.until}`);
     } else {
-      platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
-        await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
-        const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
-        return publishToYoutube({
-          videoPath: output.finalAbsPath,
-          thumbnailPath: thumbnail?.path || "",
-          ...youtubeMetadata
+      const cooldown = await youtubeQuotaCooldown("upload");
+      if (cooldown.active) {
+        platformResults.hasErrors = true;
+        platformResults.quotaExceeded.youtube = true;
+        platformResults.errors.youtube = `YouTube quota cooldown aktif sampai ${cooldown.until}.`;
+        await updateJob(job.job_id, {
+          youtube_status: "quota_exceeded",
+          youtube_error: platformResults.errors.youtube
         });
-      });
-      if (platformResults.quotaExceeded.youtube) {
-        const quotaState = await markYoutubeQuotaExceeded("upload", platformResults.errors.youtube);
-        if (quotaState.until) {
-          console.warn(`YouTube quota cooldown disimpan sampai ${quotaState.until}.`);
+        await appendLog("youtube_quota_cooldown_skip", {
+          job_id: job.job_id,
+          until: cooldown.until,
+          reason: cooldown.reason || ""
+        });
+        console.warn(`YouTube upload dilewati sampai reset quota: ${cooldown.until}`);
+      } else {
+        platformResults.youtube = await publishPlatform("youtube", platformResults, job.job_id, async () => {
+          await updateJob(job.job_id, { youtube_status: "processing", youtube_error: "" });
+          const youtubeMetadata = buildYoutubeMetadata({ job, output, caption: socialCaption });
+          return publishToYoutube({
+            videoPath: output.finalAbsPath,
+            thumbnailPath: thumbnail?.path || "",
+            ...youtubeMetadata
+          });
+        });
+        if (platformResults.quotaExceeded.youtube) {
+          const quotaState = await markYoutubeQuotaExceeded("upload", platformResults.errors.youtube);
+          if (quotaState.until) {
+            console.warn(`YouTube quota cooldown disimpan sampai ${quotaState.until}.`);
+          }
+        } else if (platformResults.youtube) {
+          await clearYoutubeQuotaExceeded("upload");
         }
-      } else if (platformResults.youtube) {
-        await clearYoutubeQuotaExceeded("upload");
       }
     }
 
