@@ -43,6 +43,15 @@ function isRuploadProcessingFailure(error) {
   );
 }
 
+function isVideoUrlValidationFailure(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("gagal validasi video url") ||
+    (message.includes("video url") && message.includes("status=404")) ||
+    message.includes("public video url")
+  );
+}
+
 function getReelUploadMethod() {
   return String(process.env.INSTAGRAM_REEL_UPLOAD_METHOD || "video_url")
     .trim()
@@ -514,25 +523,25 @@ export async function publishReel({ videoUrl, videoPath, caption, coverUrl }) {
     try {
       return await publishReelViaVideoUrl({ videoUrl, caption, coverUrl });
     } catch (error) {
-      if (!isMetaMediaUploadFailed2207076(error)) throw error;
-      console.log("IG video_url gagal dengan 2207076. Mencoba fallback resumable upload.", {
+      if (!isMetaMediaUploadFailed2207076(error) && !isVideoUrlValidationFailure(error)) throw error;
+      console.log("IG video_url gagal. Mencoba fallback resumable upload.", {
         message: error.message
       });
-      return publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl });
+      return publishReelViaResumable({ videoUrl: "", videoPath, caption, coverUrl });
     }
   }
 
   try {
     return await publishReelViaVideoUrl({ videoUrl, caption, coverUrl });
   } catch (error) {
-    if (!isMetaMediaUploadFailed2207076(error)) {
+    if (!isMetaMediaUploadFailed2207076(error) && !isVideoUrlValidationFailure(error)) {
       throw error;
     }
 
-    console.log("IG video_url gagal dengan 2207076. Mencoba fallback resumable upload.", {
+    console.log("IG video_url gagal. Mencoba fallback resumable upload.", {
       message: error.message
     });
 
-    return publishReelViaResumable({ videoUrl, videoPath, caption, coverUrl });
+    return publishReelViaResumable({ videoUrl: "", videoPath, caption, coverUrl });
   }
 }
