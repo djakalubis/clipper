@@ -3,8 +3,9 @@ name: Podcast Schedule Watchdog
 on:
   workflow_dispatch:
   schedule:
-    # GitHub schedule uses UTC. Watch target windows after 10:00 and 17:00 WIB.
-    - cron: "*/15 3-15 * * *"
+    # GitHub schedule uses UTC. Repeat inside each target window.
+    - cron: "*/15 3-9 * * *"   # 10:00 WIB watchdog window
+    - cron: "*/15 10-15 * * *" # 17:00 WIB watchdog window
 
 concurrency:
   group: podcast-schedule-watchdog
@@ -26,15 +27,27 @@ jobs:
           hour="$(TZ=Asia/Jakarta date +%H)"
           minute="$(TZ=Asia/Jakarta date +%M)"
           now="$(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M:%S %Z')"
+          event_schedule="${{ github.event.schedule }}"
           slot=""
 
-          if [ "$hour" -ge 10 ] && [ "$hour" -lt 17 ]; then
-            slot="10:00"
-          elif [ "$hour" -ge 17 ] && [ "$hour" -le 23 ]; then
-            slot="17:00"
-          fi
+          case "$event_schedule" in
+            "*/15 3-9 * * *")
+              slot="10:00"
+              ;;
+            "*/15 10-15 * * *")
+              slot="17:00"
+              ;;
+            *)
+              if [ "$hour" -ge 10 ] && [ "$hour" -lt 17 ]; then
+                slot="10:00"
+              elif [ "$hour" -ge 17 ] && [ "$hour" -le 23 ]; then
+                slot="17:00"
+              fi
+              ;;
+          esac
 
           echo "WIB now: $now"
+          echo "Event schedule: ${event_schedule:-manual}"
           echo "slot=$slot" >> "$GITHUB_OUTPUT"
           echo "minute=$minute" >> "$GITHUB_OUTPUT"
 
